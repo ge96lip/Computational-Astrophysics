@@ -1,6 +1,6 @@
 # Smoothed-Particle Hydrodynamics Simulation of a Toy Star
 
-This project simulates the structure of a toy star using **Smoothed-Particle Hydrodynamics (SPH)**, a computational method often used in astrophysics to model fluid dynamics and gravitational systems. Originally created by Philip Mocz (Princeton University, 2020), the code has been optimized to improve performance and scalability as part of a final project for the KTH course **DD2358: Introduction to High-Performance Computing**.
+This project simulates the structure of a toy star using **Smoothed-Particle Hydrodynamics (SPH)**, a computational method often used in astrophysics to model fluid dynamics and gravitational systems. Originally created by Philip Mocz (Princeton University, 2020), the code has been optimized to improve performance and scalability as part of a final project for the KTH course **[DD2358: Introduction to High-Performance Computing](https://www.kth.se/student/kurser/kurs/kursplan/DD2358-20251.pdf?lang=en)**.
 
 **Original Code Repository**: [Philip Mocz's SPH Python Code](https://github.com/pmocz/sph-python/tree/master)  
 **Optimized by**:  
