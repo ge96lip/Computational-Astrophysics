@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from test import getDensity, optimizedGetDensity  
+from test import getDensity, optimizedGetDensity, optimizedW
 
 def test_get_density():
     """
@@ -18,7 +18,7 @@ def test_get_density():
     r = pos  # Sampling locations are the particle positions
 
     # Compute rho using the original and optimized getDensity
-    rho_original = getDensity(r, pos, m, h)
+    rho_original = getDensity(r, pos, m, h, optimizedW)
     rho_optimized = optimizedGetDensity(r, pos, m, h)
 
     # Check that the values are close

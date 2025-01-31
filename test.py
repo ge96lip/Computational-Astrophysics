@@ -10,6 +10,7 @@ def W(x, y, z, h):
     r = np.sqrt(x**2 + y**2 + z**2)
     w = (1.0 / (h * np.sqrt(np.pi)))**3 * np.exp(-r**2 / h**2)
     return w
+
 def optimizedW(x, y, z, h):
     """
     Gaussian Smoothing kernel (3D)
@@ -49,17 +50,18 @@ def getPairwiseSeparations(ri, rj):
     dz = riz - rjz.T
     return dx, dy, dz
 
-
-def getDensity(r, pos, m, h):
+#@profile
+def getDensity(r, pos, m, h, kernel = optimizedW):
     """
     Get Density at sampling locations from SPH particle distribution
     """
     M = r.shape[0]
     dx, dy, dz = getPairwiseSeparations(r, pos)
-    rho = np.sum(m * W(dx, dy, dz, h), 1).reshape((M, 1))
+    # rho = np.sum(m * W(dx, dy, dz, h), 1).reshape((M, 1))
+    rho = np.sum(m * kernel(dx, dy, dz, h), 1).reshape((M, 1))
     return rho
 #@profile
-def optimizedGetDensity(r, pos, m, h):
+def optimizedGetDensity(r, pos, m, h, kernel = optimizedW):
     """
     Optimized: Get Density at sampling locations from SPH particle distribution
     """
@@ -76,10 +78,29 @@ def optimizedGetDensity(r, pos, m, h):
         dx, dy, dz = getPairwiseSeparations(r[i:i+1], pos[neighbors_idx])
 
         # Calculate density using the smoothing kernel
-        rho[i] = np.sum(m[neighbors_idx] * W(dx, dy, dz, h))
+        rho[i] = np.sum(m[neighbors_idx] * kernel(dx, dy, dz, h))
 
     return rho.reshape(-1, 1)
+@profile
+def optimizedGetDensity_fast(r, pos, m, h, kernel=optimizedW):
+    """
+    Faster optimized version of getDensity() using batch KD-tree queries and vectorization.
+    """
+    # Build KD-tree for neighbor search
+    tree = cKDTree(pos)
 
+    # Query all points at once (batch operation)
+    neighbors_idx_list = tree.query_ball_tree(tree, h)
+
+    # Prepare density array
+    rho = np.zeros(r.shape[0])
+
+    # Process all particles in a vectorized manner
+    for i, neighbors_idx in enumerate(neighbors_idx_list):
+        dx, dy, dz = getPairwiseSeparations(r[i:i+1], pos[neighbors_idx])
+        rho[i] = np.sum(m[neighbors_idx] * kernel(dx, dy, dz, h))
+
+    return rho.reshape(-1, 1)
 
 def getPressure(rho, k, n):
     """
@@ -94,8 +115,8 @@ def getAcc(pos, vel, m, h, k, n, lmbda, nu):
     Calculate the acceleration on each SPH particle
     """
     N = pos.shape[0]
-    rho = getDensity(pos, pos, m, h)
-    print(rho)
+    # rho = getDensity(pos, pos, m, h)
+    rho = optimizedGetDensity(pos, pos, m, h)
     P = getPressure(rho, k, n)
     dx, dy, dz = getPairwiseSeparations(pos, pos)
     dWx, dWy, dWz = gradW(dx, dy, dz, h)
@@ -127,7 +148,8 @@ def main():
     # Generate Initial Conditions
     np.random.seed(42)
     lmbda = 2*k*(1+n)*np.pi**(-3/(2*n)) * (M*gamma(5/2+n)/R**3/gamma(1+n))**(1/n) / R**2
-    m = M/N
+    #m = M/N
+    m = np.full(N, M / N)
     pos = np.random.randn(N, 3)
     vel = np.zeros(pos.shape)
     acc = getAcc(pos, vel, m, h, k, n, lmbda, nu)
