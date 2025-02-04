@@ -151,7 +151,7 @@ def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	return a
 	
 
-
+@profile
 def main():
 	""" SPH simulation """
 	
@@ -232,7 +232,7 @@ def main():
 			plt.plot(rlin, rho_analytic, color='gray', linewidth=2)
 			rho_radial = getDensity( rr, pos, m, h )
 			plt.plot(rlin, rho_radial, color='blue')
-			plt.pause(0.001)
+			# plt.pause(0.001)
 	    
 	
 	
@@ -243,7 +243,7 @@ def main():
 	
 	# Save figure
 	plt.savefig('sph.png',dpi=240)
-	plt.show()
+	# plt.show()
 	    
 	return 0
 	
