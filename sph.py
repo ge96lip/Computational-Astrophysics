@@ -8,7 +8,7 @@ Philip Mocz (2020) Princeton Univeristy, @PMocz
 
 Simulate the structure of a star with SPH
 """
-
+plt.ioff() 
 def W( x, y, z, h ):
 	"""
     Gausssian Smoothing kernel (3D)
@@ -235,7 +235,6 @@ def main():
 			plt.pause(0.001)
 	    
 	
-	
 	# add labels/legend
 	plt.sca(ax2)
 	plt.xlabel('radius')
@@ -246,9 +245,6 @@ def main():
 	plt.show()
 	    
 	return 0
-	
-
-
   
 if __name__== "__main__":
   main()

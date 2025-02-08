@@ -2,6 +2,10 @@ from matplotlib import pyplot as plt
 import numpy as np
 from scipy.special import gamma
 from scipy.spatial import cKDTree
+import numexpr as ne
+import multiprocessing as mp
+from workers import pairwise_worker 
+mp.set_start_method("fork", force=True)
 
 def W(x, y, z, h):
     """
@@ -32,6 +36,11 @@ def gradW(x, y, z, h):
     wz = n * z
     return wx, wy, wz
 
+def optimizedGetPairwiseSeparations(ri, rj):
+    """
+    Get pairwise separations between 2 sets of coordinates using efficient NumPy broadcasting.
+    """
+    return (ri[:, None, :] - rj[None, :, :]).transpose(2, 0, 1)
 
 def getPairwiseSeparations(ri, rj):
     """
@@ -50,15 +59,154 @@ def getPairwiseSeparations(ri, rj):
     dz = riz - rjz.T
     return dx, dy, dz
 
+
+def getPairwiseSeparations_numpy(ri, rj):
+    """
+    Optimized NumPy version avoiding large temporary arrays and improving memory locality.
+    """
+    dx = np.subtract.outer(ri[:, 0], rj[:, 0])
+    dy = np.subtract.outer(ri[:, 1], rj[:, 1])
+    dz = np.subtract.outer(ri[:, 2], rj[:, 2])
+    return dx, dy, dz
+
+def getPairwiseSeparations_numexpr(ri, rj):
+    """
+    Optimized version using NumExpr to leverage CPU parallelism.
+    """
+    M, N = ri.shape[0], rj.shape[0]
+    
+    # Explicit reshaping to avoid broadcasting issues
+    ri_x = ri[:, 0].reshape(M, 1)
+    ri_y = ri[:, 1].reshape(M, 1)
+    ri_z = ri[:, 2].reshape(M, 1)
+    
+    rj_x = rj[:, 0].reshape(1, N)
+    rj_y = rj[:, 1].reshape(1, N)
+    rj_z = rj[:, 2].reshape(1, N)
+
+    # Allocate memory for output
+    dx = np.empty((M, N), dtype=np.float64)
+    dy = np.empty((M, N), dtype=np.float64)
+    dz = np.empty((M, N), dtype=np.float64)
+
+    # Use NumExpr for fast evaluation
+    dx[:] = ne.evaluate("ri_x - rj_x")
+    dy[:] = ne.evaluate("ri_y - rj_y")
+    dz[:] = ne.evaluate("ri_z - rj_z")
+
+    return dx, dy, dz
+def getPairwiseSeparations_fully_vectorized(ri, rj):
+    """
+    Fully vectorized pairwise separations using NumPy advanced indexing
+    to minimize function calls and improve vectorization efficiency.
+    """
+    return ri[:, None, :] - rj[None, :, :]
+def getPairwiseSeparations_lists(ri, rj):
+    """
+    List-based approach that avoids NumPy overhead for small datasets.
+    """
+    dx = [[rix - rjx for rjx in rj[:, 0]] for rix in ri[:, 0]]
+    dy = [[riy - rjy for rjy in rj[:, 1]] for riy in ri[:, 1]]
+    dz = [[riz - rjz for rjz in rj[:, 2]] for riz in ri[:, 2]]
+
+    return np.array(dx), np.array(dy), np.array(dz)
+
+def getPairwiseSeparations_tuples(ri, rj):
+    """
+    Tuple-based approach that avoids unnecessary allocations.
+    """
+    dx = tuple(tuple(rix - rjx for rjx in rj[:, 0]) for rix in ri[:, 0])
+    dy = tuple(tuple(riy - rjy for rjy in rj[:, 1]) for riy in ri[:, 1])
+    dz = tuple(tuple(riz - rjz for rjz in rj[:, 2]) for riz in ri[:, 2])
+
+    return np.array(dx), np.array(dy), np.array(dz)
+def getPairwiseSeparations_inplace(ri, rj, dx, dy, dz):
+    """
+    In-place computation to minimize memory allocations.
+    """
+    ri = ri.astype(np.float32)
+    rj = rj.astype(np.float32)
+    np.subtract(ri[:, 0][:, None], rj[:, 0][None, :], out=dx)
+    np.subtract(ri[:, 1][:, None], rj[:, 1][None, :], out=dy)
+    np.subtract(ri[:, 2][:, None], rj[:, 2][None, :], out=dz)
+
+    return dx, dy, dz
+def getPairwiseSeparations_rolling(ri, rj, previous_dx=None, previous_dy=None, previous_dz=None):
+    """
+    Rolling window approach to reuse previous calculations.
+    """
+    if previous_dx is None or previous_dy is None or previous_dz is None:
+        return getPairwiseSeparations_numpy(ri, rj)
+
+    # Shift by one and recompute only new elements
+    dx_new = np.roll(previous_dx, shift=-1, axis=1)
+    dy_new = np.roll(previous_dy, shift=-1, axis=1)
+    dz_new = np.roll(previous_dz, shift=-1, axis=1)
+
+    dx_new[:, -1] = ri[:, 0] - rj[-1, 0]
+    dy_new[:, -1] = ri[:, 1] - rj[-1, 1]
+    dz_new[:, -1] = ri[:, 2] - rj[-1, 2]
+
+    return dx_new, dy_new, dz_new
+
+def getPairwiseSeparations_blockwise(ri, rj, block_size=512):
+    """
+    Optimized block-wise pairwise separations computation for better cache locality.
+    """
+    M, N = ri.shape[0], rj.shape[0]
+
+    dx = np.empty((M, N), dtype=np.float64)
+    dy = np.empty((M, N), dtype=np.float64)
+    dz = np.empty((M, N), dtype=np.float64)
+
+    for i in range(0, M, block_size):
+        for j in range(0, N, block_size):
+            i_end = min(i + block_size, M)
+            j_end = min(j + block_size, N)
+
+            dx[i:i_end, j:j_end] = ri[i:i_end, 0][:, None] - rj[j:j_end, 0][None, :]
+            dy[i:i_end, j:j_end] = ri[i:i_end, 1][:, None] - rj[j:j_end, 1][None, :]
+            dz[i:i_end, j:j_end] = ri[i:i_end, 2][:, None] - rj[j:j_end, 2][None, :]
+    return dx, dy, dz
+def getPairwiseSeparations_parallel(ri, rj, num_workers=8):
+    """
+    Parallelized version of pairwise separation using multiprocessing.
+    """
+    M = ri.shape[0]
+    block_size = M // num_workers
+
+    # Convert NumPy arrays to lists before passing them (avoiding pickle issues)
+    ri_list = ri.tolist()
+    rj_list = rj.tolist()
+
+    blocks = [(np.array(ri_list[i:i+block_size]), np.array(rj_list)) for i in range(0, M, block_size)]
+
+    with mp.Pool(num_workers) as pool:
+        results = pool.map(pairwise_worker, blocks)
+
+    # Merge results
+    dx = np.vstack([res[0] for res in results])
+    dy = np.vstack([res[1] for res in results])
+    dz = np.vstack([res[2] for res in results])
+
+    return dx, dy, dz
 #@profile
-def getDensity(r, pos, m, h, kernel = optimizedW):
+def getDensity(r, pos, m, h, kernel = W):
     """
     Get Density at sampling locations from SPH particle distribution
     """
-    M = r.shape[0]
-    dx, dy, dz = getPairwiseSeparations(r, pos)
+    M, N = pos.shape[0], pos.shape[0]
+    
+    # Use float32 instead of float64 for reduced memory usage and better cache performance
+    dx = np.empty((M, N), dtype=np.float32)
+    dy = np.empty((M, N), dtype=np.float32)
+    dz = np.empty((M, N), dtype=np.float32)
+
+    # Use in-place optimized function
+    dx, dy, dz = getPairwiseSeparations_inplace(r, pos, dx, dy, dz)
     # rho = np.sum(m * W(dx, dy, dz, h), 1).reshape((M, 1))
-    rho = np.sum(m * kernel(dx, dy, dz, h), 1).reshape((M, 1))
+    #rho = np.sum(m * kernel(dx, dy, dz, h), 1).reshape((M, 1))
+    rho = np.sum(m * kernel(dx, dy, dz, h), 1).reshape((r.shape[0], 1))
     return rho
 #@profile
 def optimizedGetDensity(r, pos, m, h, kernel = optimizedW):
@@ -81,7 +229,7 @@ def optimizedGetDensity(r, pos, m, h, kernel = optimizedW):
         rho[i] = np.sum(m[neighbors_idx] * kernel(dx, dy, dz, h))
 
     return rho.reshape(-1, 1)
-@profile
+#@profile
 def optimizedGetDensity_fast(r, pos, m, h, kernel=optimizedW):
     """
     Faster optimized version of getDensity() using batch KD-tree queries and vectorization.
@@ -115,8 +263,8 @@ def getAcc(pos, vel, m, h, k, n, lmbda, nu):
     Calculate the acceleration on each SPH particle
     """
     N = pos.shape[0]
-    # rho = getDensity(pos, pos, m, h)
-    rho = optimizedGetDensity(pos, pos, m, h)
+    rho = getDensity(pos, pos, m, h, optimizedW)
+    #rho = optimizedGetDensity(pos, pos, m, h)
     P = getPressure(rho, k, n)
     dx, dy, dz = getPairwiseSeparations(pos, pos)
     dWx, dWy, dWz = gradW(dx, dy, dz, h)
