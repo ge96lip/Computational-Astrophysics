@@ -196,7 +196,6 @@ def main():
 	for i in range(Nt):
 		# (1/2) kick
 		vel += acc * dt/2
-		
 		# drift
 		pos += vel * dt
 		
