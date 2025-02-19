@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from test import getDensity, optimizedGetDensity, optimizedW
+from data_structures import getDensity, optimizedGetDensity, optimizedW
 
 def test_get_density():
     """

@@ -107,7 +107,7 @@ def getPressure(rho, k, n):
 	
 	return P
 	
-
+#@profile
 def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	"""
 	Calculate the acceleration on each SPH particle
@@ -154,9 +154,9 @@ def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 
 def main():
 	""" SPH simulation """
-	
+
 	# Simulation parameters
-	N         = 400    # Number of particles
+	N         = 1000    # Number of particles
 	t         = 0      # current time of the simulation
 	tEnd      = 12     # time at which simulation ends
 	dt        = 0.04   # timestep
@@ -166,22 +166,22 @@ def main():
 	k         = 0.1    # equation of state constant
 	n         = 1      # polytropic index
 	nu        = 1      # damping
-	plotRealTime = True # switch on for plotting as the simulation goes along
-	
+	plotRealTime = False # switch on for plotting as the simulation goes along
+
 	# Generate Initial Conditions
 	np.random.seed(42)            # set the random number generator seed
-	
+
 	lmbda = 2*k*(1+n)*np.pi**(-3/(2*n)) * (M*gamma(5/2+n)/R**3/gamma(1+n))**(1/n) / R**2  # ~ 2.01
 	m     = M/N                    # single particle mass
 	pos   = np.random.randn(N,3)   # randomly selected positions and velocities
 	vel   = np.zeros(pos.shape)
-	
+
 	# calculate initial gravitational accelerations
 	acc = getAcc( pos, vel, m, h, k, n, lmbda, nu )
-	
+
 	# number of timesteps
 	Nt = int(np.ceil(tEnd/dt))
-	
+
 	# prep figure
 	fig = plt.figure(figsize=(4,5), dpi=80)
 	grid = plt.GridSpec(3, 1, wspace=0.0, hspace=0.3)
@@ -191,7 +191,7 @@ def main():
 	rlin = np.linspace(0,1,100)
 	rr[:,0] =rlin
 	rho_analytic = lmbda/(4*k) * (R**2 - rlin**2)
-	
+
 	# Simulation Main Loop
 	for i in range(Nt):
 		# (1/2) kick
@@ -212,11 +212,11 @@ def main():
 		# get density for plotting
 		rho = getDensity( pos, pos, m, h )
 		
-		# plot in real time
-		if plotRealTime or (i == Nt-1):
+		
+		if plotRealTime:
 			plt.sca(ax1)
 			plt.cla()
-			cval = np.minimum((rho-3)/3,1).flatten()
+			cval = np.minimum((rho-3)/3,1).flatten() 
 			plt.scatter(pos[:,0],pos[:,1], c=cval, cmap=plt.cm.autumn, s=10, alpha=0.5)
 			ax1.set(xlim=(-1.4, 1.4), ylim=(-1.2, 1.2))
 			ax1.set_aspect('equal', 'box')
@@ -233,16 +233,16 @@ def main():
 			rho_radial = getDensity( rr, pos, m, h )
 			plt.plot(rlin, rho_radial, color='blue')
 			plt.pause(0.001)
-	    
-	
-	# add labels/legend
-	plt.sca(ax2)
-	plt.xlabel('radius')
-	plt.ylabel('density')
-	
-	# Save figure
-	plt.savefig('sph.png',dpi=240)
-	plt.show()
+			
+		if plotRealTime: 
+			# add labels/legend
+			plt.sca(ax2)
+			plt.xlabel('radius')
+			plt.ylabel('density')
+			
+			# Save figure
+			plt.savefig('sph.png',dpi=240)
+			plt.show()
 	    
 	return 0
   

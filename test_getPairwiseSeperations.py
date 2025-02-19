@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from test import getPairwiseSeparations, getPairwiseSeparations_inplace
+from data_structures import getPairwiseSeparations, getPairwiseSeparations_inplace
 
 # Set up common test data
 N = 400

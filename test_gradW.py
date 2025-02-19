@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from test import gradW, getPairwiseSeparations_inplace, gradW_inplace, gradW_float32
+from data_structures import gradW, getPairwiseSeparations_inplace, gradW_inplace, gradW_float32
 
 # Set up common test data
 N = 400

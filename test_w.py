@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from test import W, optimizedW, getPairwiseSeparations
+from data_structures import W, optimizedW, getPairwiseSeparations
 
 def testW(): 
     """
