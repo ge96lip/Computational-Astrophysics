@@ -35,13 +35,24 @@ def gradW( x, y, z, h ):
 	h     is the smoothing length
 	wx, wy, wz     is the evaluated gradient
 	"""
+	# initalize the arrays
+	r = np.empty(x.shape, dtype=x.dtype)
+	wx = np.empty(x.shape, dtype=x.dtype)
+	wy = np.empty(y.shape, dtype=y.dtype)
+	wz = np.empty(z.shape, dtype=z.dtype)
+
+	# calculate the gradient
+	np.square(x, out=r)
+	np.add(r, np.square(y), out=r)
+	np.add(r, np.square(z), out=r)
 	
-	r = np.sqrt(x**2 + y**2 + z**2)
-	
-	n = -2 * np.exp( -r**2 / h**2) / h**5 / (np.pi)**(3/2)
-	wx = n * x
-	wy = n * y
-	wz = n * z
+	np.divide(r , -h**2, out=r)
+	np.exp(r, out=r)
+	np.multiply(r, -2 / h**5 / (np.pi) ** (3/2), out=r)
+
+	np.multiply(r, x, out=wx)
+	np.multiply(r, y, out=wy)
+	np.multiply(r, z, out=wz)
 	
 	return wx, wy, wz
 	
