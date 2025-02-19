@@ -151,7 +151,7 @@ def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	return a
 	
 
-@profile
+# @profile
 def main():
 	""" SPH simulation """
 	

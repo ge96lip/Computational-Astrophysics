@@ -6,3 +6,6 @@ cProfile
 memory_profiler
 kernprof
 line_profiler
+pylint
+black
+pytest
