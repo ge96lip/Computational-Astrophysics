@@ -27,6 +27,7 @@ def W( x, y, z, h ):
 	
 # @profile	
 def gradW( x, y, z, h ):
+	# OPTIMIZED VERSION
 	"""
 	Gradient of the Gausssian Smoothing kernel (3D)
 	x     is a vector/matrix of x positions
@@ -58,33 +59,20 @@ def gradW( x, y, z, h ):
 	
 # @profile	
 def getPairwiseSeparations( ri, rj ):
+	# OPTIMIZED VERSION
 	"""
 	Get pairwise desprations between 2 sets of coordinates
 	ri    is an M x 3 matrix of positions
 	rj    is an N x 3 matrix of positions
 	dx, dy, dz   are M x N matrices of separations
 	"""
-	
-	M = ri.shape[0]
-	N = rj.shape[0]
-	
-	# positions ri = (x,y,z)
-	rix = ri[:,0].reshape((M,1))
-	riy = ri[:,1].reshape((M,1))
-	riz = ri[:,2].reshape((M,1))
-	
-	# other set of points positions rj = (x,y,z)
-	rjx = rj[:,0].reshape((N,1))
-	rjy = rj[:,1].reshape((N,1))
-	rjz = rj[:,2].reshape((N,1))
-	
-	# matrices that store all pairwise particle separations: r_i - r_j
-	dx = rix - rjx.T
-	dy = riy - rjy.T
-	dz = riz - rjz.T
-	
+
+	dx = np.subtract.outer(ri[:, 0], rj[:, 0])
+	dy = np.subtract.outer(ri[:, 1], rj[:, 1])
+	dz = np.subtract.outer(ri[:, 2], rj[:, 2])
+
 	return dx, dy, dz
-	
+
 # @profile
 def getDensity( r, pos, m, h ):
 	"""
@@ -167,7 +155,7 @@ def main():
 	""" SPH simulation """
 	
 	# Simulation parameters
-	N         = 400    # Number of particles
+	N         = 1000    # Number of particles
 	t         = 0      # current time of the simulation
 	tEnd      = 12     # time at which simulation ends
 	dt        = 0.04   # timestep

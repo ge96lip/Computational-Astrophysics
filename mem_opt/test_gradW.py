@@ -4,7 +4,7 @@ import opt_sph
 import sph
 
 # Set up common test data
-N = 400
+N = 1000
 h = 0.1
 np.random.seed(42)
 pos = np.random.randn(N, 3)
