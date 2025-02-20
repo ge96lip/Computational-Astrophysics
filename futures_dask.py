@@ -47,18 +47,16 @@ def getDensity_chunk(r_chunk, pos, m, h):
 def getDensity(r, pos, m, h, num_chunks=10):
     """
     Compute the density at the sampling locations `r` by splitting the work into chunks.
-    Scatter the full positions array so that it is sent only once to each worker.
+    Avoid unnecessary broadcasting of large arrays.
     """
-    pos_future = client.scatter(pos, broadcast=True)
-    client.replicate([pos_future])
-    
     M = r.shape[0]
     chunk_size = int(np.ceil(M / num_chunks))
     futures = []
     for i in range(0, M, chunk_size):
         r_chunk = r[i:i+chunk_size]
-        future = client.submit(getDensity_chunk, r_chunk, pos_future, m, h)
+        future = client.submit(getDensity_chunk, r_chunk, pos, m, h)  # Remove scatter
         futures.append(future)
+    
     wait(futures)
     results = client.gather(futures)
     return np.vstack(results)
@@ -89,7 +87,7 @@ def getAcc(pos, vel, m, h, k, n, lmbda, nu, num_chunks=10):
     """
     N = pos.shape[0]
     # Compute densities and pressures
-    rho = getDensity(pos, pos, m, h)
+    rho = getDensity(pos, pos, m, h, num_chunks=100)
     P = getPressure(rho, k, n)
     
     # Compute full pairwise separations and kernel gradients (NxN arrays)
@@ -136,11 +134,11 @@ if __name__ == '__main__':
         multiprocessing.set_start_method("spawn", force=True)
 
     # Start the Dask client with multiple workers for better resilience
-    client = Client(n_workers=4, threads_per_worker=1, dashboard_address=":8790")
+    client = Client(n_workers=2, threads_per_worker=1, dashboard_address=":8790")
     print("Dask dashboard available at:", client.dashboard_link)
 
     # Simulation parameters
-    N = 1000                # Number of particles
+    N = 10000                # Number of particles
     M = 2 / N               # Mass per particle
     h = 0.1                 # Smoothing length
     pos = np.random.randn(N, 3)  # Initial positions

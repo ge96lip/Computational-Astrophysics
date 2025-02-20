@@ -2,12 +2,12 @@ from dask.distributed import Client
 import numpy as np
 import pytest
 import dask.array as da
-#from parallel_dask import getAcc as getAcc_dask
+from dask_array import getAcc as getAcc_dask
 from test_chunk import getAcc as getAcc_chunk
 from sph import getAcc as getAcc_sph
 from scipy.special import gamma
 
-def test_chunkAcc():
+def test_daskAcc():
     """
     SPH simulation using Dask arrays for parallel computation.
     """
@@ -31,17 +31,17 @@ def test_chunkAcc():
     
     # For small arrays, use one chunk to reduce scheduling overhead.
     chunk_size = N
-    pos = da.from_array(pos_np, chunks=(chunk_size, 3)).persist()
-    vel = da.from_array(vel_np, chunks=(chunk_size, 3)).persist()
+    pos = da.from_array(pos_np, chunks=(chunk_size, 3))
+    vel = da.from_array(vel_np, chunks=(chunk_size, 3))
 
     # Compute initial accelerations (force immediate computation for use in the loop)
-    #acc_dask = getAcc_dask(pos, vel, m, h, k, n, lmbda, nu).compute()
+    acc_dask = getAcc_dask(pos, vel, m, h, k, n, lmbda, nu).compute()
 
     M         = 2      # star mass
     pos = np.random.randn(N, 3)  # Initial positions
     vel = np.zeros_like(pos) 
    
-    acc_chunk = getAcc_chunk(pos, vel, M, h, k, n, lmbda, nu, num_chunks=2)
+    # acc_chunk = getAcc_chunk(pos, vel, M, h, k, n, lmbda, nu)
     # Generate Initial Conditions
     np.random.seed(42)            # set the random number generator seed
 
@@ -54,4 +54,4 @@ def test_chunkAcc():
     acc_original = getAcc_sph( pos, vel, m, h, k, n, lmbda, nu )
 
     # Check that the values are close
-    assert np.allclose(acc_chunk, acc_original, atol=1e-6), "Rho values differ between methods!"
+    assert np.allclose(acc_dask, acc_original, atol=1e-6), "Rho values differ between methods!"

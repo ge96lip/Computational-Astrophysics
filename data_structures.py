@@ -4,7 +4,6 @@ from scipy.special import gamma
 from scipy.spatial import cKDTree
 import numexpr as ne
 import multiprocessing as mp
-from workers import pairwise_worker 
 mp.set_start_method("fork", force=True)
 
 
@@ -258,7 +257,7 @@ def main():
     """ SPH simulation """
 
     # Simulation parameters
-    N = 1000
+    N = 10000
     t = 0
     tEnd = 12
     dt = 0.04

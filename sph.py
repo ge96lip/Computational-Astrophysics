@@ -156,7 +156,7 @@ def main():
 	""" SPH simulation """
 
 	# Simulation parameters
-	N         = 1000    # Number of particles
+	N         = 10000    # Number of particles
 	t         = 0      # current time of the simulation
 	tEnd      = 12     # time at which simulation ends
 	dt        = 0.04   # timestep
