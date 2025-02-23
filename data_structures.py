@@ -4,7 +4,9 @@ from scipy.special import gamma
 from scipy.spatial import cKDTree
 import numexpr as ne
 import multiprocessing as mp
+# Mac OS: 
 mp.set_start_method("fork", force=True)
+# Windows: 
 # mp.set_start_method("spawn", force=True)
 
 def W(x, y, z, h):
