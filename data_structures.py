@@ -5,7 +5,7 @@ from scipy.spatial import cKDTree
 import numexpr as ne
 import multiprocessing as mp
 mp.set_start_method("fork", force=True)
-
+# mp.set_start_method("spawn", force=True)
 
 def W(x, y, z, h):
     """
