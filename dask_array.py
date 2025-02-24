@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import dask.array as da
 import matplotlib.pyplot as plt
@@ -140,8 +141,10 @@ def main():
     """
     SPH simulation using Dask arrays for parallel computation.
     """
+    print(f"Started execution of dask_array.py")
+    start_time = time.time() 
     # Simulation parameters
-    N = 10000            # Number of particles
+    N = 1000            # Number of particles
     t = 0              # Current simulation time
     tEnd = 12          # End time
     dt = 0.04          # Timestep
@@ -158,20 +161,17 @@ def main():
     lmbda = 2*k*(1+n)*np.pi**(-3/(2*n)) * ((M_val * gamma(5/2+n) / (R**3)) / gamma(1+n))**(1/n) / R**2
     m = M_val / N  # Mass per particle
     
-    # Generate initial conditions (NumPy arrays)
-    pos_np = np.random.randn(N, 3)
-    vel_np = np.zeros((N, 3))
-    
     # Convert to Dask arrays with a specified chunk size.
-    chunk_size = 2500
-    pos = da.from_array(pos_np, chunks=(chunk_size, 3))
-    vel = da.from_array(vel_np, chunks=(chunk_size, 3))
+    chunk_size = 250
+
+    pos = da.random.standard_normal((N, 3), chunks=(chunk_size, 3))
+    vel = da.zeros((N, 3), chunks=(chunk_size, 3))
     
     # Compute initial accelerations (force immediate computation for use in the loop)
     acc = getAcc(pos, vel, m, h, k, n, lmbda, nu).compute()
     
     Nt = int(np.ceil(tEnd / dt))
-    
+    print("Number of timesteps:", Nt)
     # Prepare figure for plotting
     fig = plt.figure(figsize=(4, 5), dpi=80)
     grid = plt.GridSpec(3, 1, wspace=0.0, hspace=0.3)
@@ -185,31 +185,31 @@ def main():
     # Main simulation loop
     for i in range(Nt):
         # (1/2) kick: update velocity half-step
+        #vel += acc * dt/2
         vel = (vel + (dt / 2) * da.from_array(acc, chunks=(chunk_size, 3))).compute()
         
         # Drift: update positions
         pos = (pos + dt * da.from_array(vel, chunks=(chunk_size, 3))).compute()
-        
-        # Update accelerations using the new positions and velocities.
-        # (Convert back to dask arrays before calling getAcc.)
-        pos_dask = da.from_array(pos, chunks=(chunk_size, 3))
-        vel_dask = da.from_array(vel, chunks=(chunk_size, 3))
-        
-        acc = getAcc(pos_dask, vel_dask, m, h, k, n, lmbda, nu).compute()
-        
+        #pos += vel * dt
+        acc = getAcc(pos, vel, m, h, k, n, lmbda, nu).compute()
         # (1/2) kick: complete velocity update
+        #vel = (da.from_array(vel, chunks=(chunk_size, 3)) + (dt / 2) * da.from_array(acc, chunks=(chunk_size, 3))).compute()
         vel = (da.from_array(vel, chunks=(chunk_size, 3)) + (dt / 2) * da.from_array(acc, chunks=(chunk_size, 3))).compute()
-        
+        #vel += acc * dt/2
         # Increment time
         t += dt
+        print("doing something")
         
-        # For plotting, compute density at particle positions
-        rho = getDensity(da.from_array(pos, chunks=(chunk_size, 3)),
-                         da.from_array(pos, chunks=(chunk_size, 3)), m, h).compute()
-        
+        if i % 100 == 0:
+            print(f"Completed {i} timesteps")
+            
         if plotRealTime:
             ax1.cla()
             # Color by density (with some simple normalization)
+            # For plotting, compute density at particle positions
+            rho = getDensity(da.from_array(pos, chunks=(chunk_size, 3)),
+                         da.from_array(pos, chunks=(chunk_size, 3)), m, h).compute()
+        
             cval = np.minimum((rho - 3) / 3, 1).flatten()
             ax1.scatter(pos[:, 0], pos[:, 1], c=cval, cmap=plt.cm.autumn, s=10, alpha=0.5)
             ax1.set(xlim=(-1.4, 1.4), ylim=(-1.2, 1.2))
@@ -232,7 +232,9 @@ def main():
         ax2.set_ylabel('density')
         plt.savefig('sph.png', dpi=240)
         plt.show()
-    
+        
+    end_time = time.time()
+    print(f"Execution time of dask_array.py: {end_time - start_time} seconds")
     return 0
 
 if __name__ == "__main__":
