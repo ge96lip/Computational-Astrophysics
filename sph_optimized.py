@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import gamma
+from scipy.spatial import cKDTree
 
 """
 Create Your Own Smoothed-Particle-Hydrodynamics Simulation (With Python)
@@ -24,6 +25,16 @@ def W( x, y, z, h ):
 	w = (1.0 / (h*np.sqrt(np.pi)))**3 * np.exp( -r**2 / h**2)
 	
 	return w
+def optimizedW(x, y, z, h):
+    """
+    Gaussian Smoothing kernel (3D)
+    """
+    h_np = np.asarray(h)
+    r = np.sqrt(x**2 + y**2 + z**2)
+    mask = r <= h  # Only consider distances within h
+    w = np.zeros_like(r)
+    w[mask] = (1.0 / (h_np * np.sqrt(np.pi)))**3 * np.exp(-r[mask]**2 / h_np**2)
+    return w
 	
 def gradW( x, y, z, h ):
 	"""
@@ -72,6 +83,24 @@ def getPairwiseSeparations( ri, rj ):
 	dz = riz - rjz.T
 	
 	return dx, dy, dz
+def getPairwiseSeparations_inplace(ri, rj):
+    """
+    In-place computation to minimize memory allocations.
+    """
+    M, N = rj.shape[0], rj.shape[0]
+
+    dx = np.empty((M, N), dtype=np.float32)
+    dy = np.empty((M, N), dtype=np.float32)
+    dz = np.empty((M, N), dtype=np.float32)
+    #ri = ri.astype(np.float32)
+    ri = np.asarray(ri).astype(np.float32) 
+    #rj = rj.astype(np.float32)
+    rj = np.asarray(rj).astype(np.float32) 
+    np.subtract(ri[:, 0][:, None], rj[:, 0][None, :], out=dx)
+    np.subtract(ri[:, 1][:, None], rj[:, 1][None, :], out=dy)
+    np.subtract(ri[:, 2][:, None], rj[:, 2][None, :], out=dz)
+
+    return dx, dy, dz
 	
 @profile
 def getDensity( r, pos, m, h ):
@@ -86,13 +115,13 @@ def getDensity( r, pos, m, h ):
 	
 	M = r.shape[0]
 	
-	dx, dy, dz = getPairwiseSeparations( r, pos );
+	dx, dy, dz = getPairwiseSeparations_inplace( r, pos )
 	
-	rho = np.sum( m * W(dx, dy, dz, h), 1 ).reshape((M,1))
+	rho = np.sum( m * optimizedW(dx, dy, dz, h), 1 ).reshape((M,1))
 	
 	return rho
 	
-	
+
 def getPressure(rho, k, n):
 	"""
 	Equation of State
@@ -106,7 +135,7 @@ def getPressure(rho, k, n):
 	
 	return P
 	
-#@profile
+@profile
 def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	"""
 	Calculate the acceleration on each SPH particle
@@ -124,13 +153,13 @@ def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	N = pos.shape[0]
 	
 	# Calculate densities at the position of the particles
-	rho = getDensity( pos, pos, m, h )
+	rho = getDensity(pos, pos, m, h )
 	
 	# Get the pressures
 	P = getPressure(rho, k, n)
 	
 	# Get pairwise distances and gradients
-	dx, dy, dz = getPairwiseSeparations( pos, pos )
+	dx, dy, dz = getPairwiseSeparations_inplace( pos, pos )
 	dWx, dWy, dWz = gradW( dx, dy, dz, h )
 	
 	# Add Pressure contribution to accelerations
