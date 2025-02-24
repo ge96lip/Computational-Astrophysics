@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import gamma
 from scipy.spatial import cKDTree
+import numexpr as ne
 
 """
 Create Your Own Smoothed-Particle-Hydrodynamics Simulation (With Python)
@@ -54,7 +55,25 @@ def gradW( x, y, z, h ):
 	wz = n * z
 	
 	return wx, wy, wz
-	
+def gradW_float32_ne(x, y, z, h, N):
+    """Optimized gradient computation using numexpr."""
+    h_np = np.asarray(h)  # Ensure `h` is a NumPy array
+
+    x_np = np.asarray(x)
+    y_np = np.asarray(y)
+    z_np = np.asarray(z)
+    pi = np.pi
+    r2 = ne.evaluate("x_np**2 + y_np**2 + z_np**2")
+    exp_term = ne.evaluate("exp(-r2 / h_np**2)")
+    scale = ne.evaluate("-2 * exp_term / (h_np**5 * (pi**(3/2)))")
+
+    wx = ne.evaluate("scale * x_np")
+    wy = ne.evaluate("scale * y_np")
+    wz = ne.evaluate("scale * z_np")
+
+    return wx, wy, wz
+
+
 	
 def getPairwiseSeparations( ri, rj ):
 	"""
@@ -102,7 +121,7 @@ def getPairwiseSeparations_inplace(ri, rj):
 
     return dx, dy, dz
 	
-@profile
+#@profile
 def getDensity( r, pos, m, h ):
 	"""
 	Get Density at sampling loctions from SPH particle distribution
@@ -160,7 +179,7 @@ def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	
 	# Get pairwise distances and gradients
 	dx, dy, dz = getPairwiseSeparations_inplace( pos, pos )
-	dWx, dWy, dWz = gradW( dx, dy, dz, h )
+	dWx, dWy, dWz = gradW_float32_ne(dx, dy, dz, h, N) #gradW( dx, dy, dz, h )
 	
 	# Add Pressure contribution to accelerations
 	ax = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWx, 1).reshape((N,1))
@@ -184,7 +203,7 @@ def main():
 	""" SPH simulation """
 
 	# Simulation parameters
-	N         = 1000    # Number of particles
+	N         = 400    # Number of particles
 	t         = 0      # current time of the simulation
 	tEnd      = 12     # time at which simulation ends
 	dt        = 0.04   # timestep

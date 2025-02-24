@@ -12,6 +12,7 @@ def W(x, y, z, h):
     """
     Gausssian Smoothing kernel (3D)
     """
+    h = np.asarray(h)
     r = np.sqrt(x**2 + y**2 + z**2)
     w = (1.0 / (h * np.sqrt(np.pi)))**3 * np.exp(-r**2 / h**2)
     return w
@@ -37,7 +38,23 @@ def gradW(x, y, z, h):
     wy = n * y
     wz = n * z
     return wx, wy, wz
+def gradW_float32_ne(x, y, z, h, N):
+    """Optimized gradient computation using numexpr."""
+    h_np = np.asarray(h)  # Ensure `h` is a NumPy array
 
+    x_np = np.asarray(x)
+    y_np = np.asarray(y)
+    z_np = np.asarray(z)
+    pi = np.pi
+    r2 = ne.evaluate("x_np**2 + y_np**2 + z_np**2")
+    exp_term = ne.evaluate("exp(-r2 / h_np**2)")
+    scale = ne.evaluate("-2 * exp_term / (h_np**5 * (pi**(3/2)))")
+
+    wx = ne.evaluate("scale * x_np")
+    wy = ne.evaluate("scale * y_np")
+    wz = ne.evaluate("scale * z_np")
+
+    return wx, wy, wz
 def gradW_float32_inplace(x, y, z, h, N):
     """
     Fully optimized in-place gradient computation using float32.
@@ -75,6 +92,10 @@ def getPairwiseSeparations(ri, rj):
     """
     Get pairwise separations between 2 sets of coordinates
     """
+    #ri = ri.astype(np.float32)
+    ri = np.asarray(ri).astype(np.float32) 
+    #rj = rj.astype(np.float32)
+    rj = np.asarray(rj).astype(np.float32) 
     M = ri.shape[0]
     N = rj.shape[0]
     rix = ri[:, 0].reshape((M, 1))
@@ -113,7 +134,7 @@ def getDensity(r, pos, m, h, kernel = W):
     Get Density at sampling locations from SPH particle distribution
     """
     # Use in-place optimized function
-    dx, dy, dz = getPairwiseSeparations_inplace(r, pos)
+    dx, dy, dz = getPairwiseSeparations_inplace(r, pos) # getPairwiseSeparations(r, pos) 
     # rho = np.sum(m * W(dx, dy, dz, h), 1).reshape((M, 1))
     #rho = np.sum(m * kernel(dx, dy, dz, h), 1).reshape((M, 1))
     rho = np.sum(m * kernel(dx, dy, dz, h), 1).reshape((r.shape[0], 1))
@@ -212,7 +233,7 @@ def calculate_a_npdot(m, P, rho, dWx, dWy, dWz, N):
     ay = -np.sum(np.dot(common_term, dWy), axis=1, keepdims=True)  # (400,1)
     az = -np.sum(np.dot(common_term, dWz), axis=1, keepdims=True)  # (400,1)
     
-@profile 
+#@profile 
 def getAcc(pos, vel, m, h, k, n, lmbda, nu):
     """
     Calculate the acceleration on each SPH particle
@@ -234,8 +255,8 @@ def getAcc(pos, vel, m, h, k, n, lmbda, nu):
     rho = getDensity(pos_mv, pos_mv, m_mv, h_mv, optimizedW)
     #rho = optimizedGetDensity(pos, pos, m, h)
     P = getPressure(rho, k_mv, n_mv)
-    dx, dy, dz = getPairwiseSeparations_inplace(pos_mv, pos_mv)
-    dWx, dWy, dWz = gradW_float32_inplace(dx, dy, dz, h_mv, N)
+    dx, dy, dz = getPairwiseSeparations_inplace(pos_mv, pos_mv) #getPairwiseSeparations(pos_mv, pos_mv)#
+    dWx, dWy, dWz = gradW_float32_ne(dx, dy, dz, h_mv, N) ##gradW(dx, dy, dz, h) #
     """ax = -np.sum(m * (P/rho**2 + P.T/rho.T**2) * dWx, 1).reshape((N, 1))
     ay = -np.sum(m * (P/rho**2 + P.T/rho.T**2) * dWy, 1).reshape((N, 1))
     az = -np.sum(m * (P/rho**2 + P.T/rho.T**2) * dWz, 1).reshape((N, 1))
@@ -258,7 +279,7 @@ def main():
     """ SPH simulation """
 
     # Simulation parameters
-    N = 1000
+    N = 400
     t = 0
     tEnd = 12
     dt = 0.04
@@ -297,9 +318,10 @@ def main():
         acc = getAcc(pos, vel, m, h, k, n, lmbda, nu)
         vel += acc * dt/2
         t += dt
-        rho = getDensity( pos, pos, m, h )
+        
 
         if plotRealTime:
+            rho = getDensity( pos, pos, m, h )
             plt.sca(ax1)
             plt.cla()
             cval = np.minimum((rho-3)/3,1).flatten() 

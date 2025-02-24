@@ -73,7 +73,7 @@ def getPairwiseSeparations( ri, rj ):
 	
 	return dx, dy, dz
 	
-@profile
+#@profile
 def getDensity( r, pos, m, h ):
 	"""
 	Get Density at sampling loctions from SPH particle distribution
@@ -155,7 +155,7 @@ def main():
 	""" SPH simulation """
 
 	# Simulation parameters
-	N         = 1000    # Number of particles
+	N         = 400    # Number of particles
 	t         = 0      # current time of the simulation
 	tEnd      = 12     # time at which simulation ends
 	dt        = 0.04   # timestep
