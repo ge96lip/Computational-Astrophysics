@@ -8,7 +8,7 @@ Philip Mocz (2020) Princeton Univeristy, @PMocz
 
 Simulate the structure of a star with SPH
 """
-
+@profile
 def W( x, y, z, h ):
 	"""
     Gausssian Smoothing kernel (3D)
@@ -25,7 +25,7 @@ def W( x, y, z, h ):
 	
 	return w
 	
-	
+@profile	
 def gradW( x, y, z, h ):
 	"""
 	Gradient of the Gausssian Smoothing kernel (3D)
@@ -45,7 +45,7 @@ def gradW( x, y, z, h ):
 	
 	return wx, wy, wz
 	
-	
+@profile	
 def getPairwiseSeparations( ri, rj ):
 	"""
 	Get pairwise desprations between 2 sets of coordinates
@@ -74,7 +74,7 @@ def getPairwiseSeparations( ri, rj ):
 	
 	return dx, dy, dz
 	
-
+@profile
 def getDensity( r, pos, m, h ):
 	"""
 	Get Density at sampling loctions from SPH particle distribution
@@ -93,7 +93,7 @@ def getDensity( r, pos, m, h ):
 	
 	return rho
 	
-	
+@profile	
 def getPressure(rho, k, n):
 	"""
 	Equation of State
@@ -107,7 +107,7 @@ def getPressure(rho, k, n):
 	
 	return P
 	
-
+@profile
 def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	"""
 	Calculate the acceleration on each SPH particle
@@ -150,7 +150,6 @@ def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	
 	return a
 	
-
 
 def main():
 	""" SPH simulation """

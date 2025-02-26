@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import gamma
+import cythonfn
 
 """
 Create Your Own Smoothed-Particle-Hydrodynamics Simulation (With Python)
@@ -87,7 +88,7 @@ def getDensity( r, pos, m, h ):
 	
 	M = r.shape[0]
 	
-	dx, dy, dz = getPairwiseSeparations( r, pos );
+	dx, dy, dz = cythonfn.getPairwiseSeparations( r, pos );
 	
 	rho = np.sum( m * W(dx, dy, dz, h), 1 ).reshape((M,1))
 	
@@ -125,10 +126,10 @@ def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	N = pos.shape[0]
 	
 	# Calculate densities at the position of the particles
-	rho = getDensity( pos, pos, m, h )
+	rho = cythonfn.getDensity( pos, pos, m, h )
 	
 	# Get the pressures
-	P = getPressure(rho, k, n)
+	P = cythonfn.getPressure(rho, k, n)
 	
 	# Get pairwise distances and gradients
 	dx, dy, dz = getPairwiseSeparations( pos, pos )
@@ -154,7 +155,8 @@ def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 
 def main():
 	""" SPH simulation """
-	
+	return cythonfn.main()
+	'''
 	# Simulation parameters
 	N         = 400    # Number of particles
 	t         = 0      # current time of the simulation
@@ -177,7 +179,7 @@ def main():
 	vel   = np.zeros(pos.shape)
 	
 	# calculate initial gravitational accelerations
-	acc = getAcc( pos, vel, m, h, k, n, lmbda, nu )
+	acc = cythonfn.getAcc( pos, vel, m, h, k, n, lmbda, nu )
 	
 	# number of timesteps
 	Nt = int(np.ceil(tEnd/dt))
@@ -201,7 +203,7 @@ def main():
 		pos += vel * dt
 		
 		# update accelerations
-		acc = getAcc( pos, vel, m, h, k, n, lmbda, nu )
+		acc = cythonfn.getAcc( pos, vel, m, h, k, n, lmbda, nu )
 		
 		# (1/2) kick
 		vel += acc * dt/2
@@ -210,7 +212,7 @@ def main():
 		t += dt
 		
 		# get density for plotting
-		rho = getDensity( pos, pos, m, h )
+		rho = cythonfn.getDensity( pos, pos, m, h )
 		
 		# plot in real time
 		if plotRealTime or (i == Nt-1):
@@ -246,7 +248,7 @@ def main():
 	# plt.show()
 	    
 	return 0
-	
+	'''
 
 
   
