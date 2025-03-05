@@ -8,63 +8,67 @@ Philip Mocz (2020) Princeton Univeristy, @PMocz
 
 Simulate the structure of a star with SPH
 """
+
+
 # @profile
-def W( x, y, z, h ):
-	# OPTIMIZED VERSION
-	"""
+def W(x, y, z, h):
+    # OPTIMIZED VERSION
+    """
     Gausssian Smoothing kernel (3D)
-	x     is a vector/matrix of x positions
-	y     is a vector/matrix of y positions
-	z     is a vector/matrix of z positions
-	h     is the smoothing length
-	w     is the evaluated smoothing function
-	"""
-	r = np.square(x)
-	np.add(r, np.square(y), out=r)
-	np.add(r, np.square(z), out=r)
-	np.sqrt(r, out=r)
+        x     is a vector/matrix of x positions
+        y     is a vector/matrix of y positions
+        z     is a vector/matrix of z positions
+        h     is the smoothing length
+        w     is the evaluated smoothing function
+    """
+    r = np.square(x)
+    np.add(r, np.square(y), out=r)
+    np.add(r, np.square(z), out=r)
+    np.sqrt(r, out=r)
 
-	w = np.divide(r, h)
-	np.square(w, out=w)
-	np.negative(w, out=w)
-	np.exp(w, out=w)
-	np.multiply(w, (1.0 / (h * np.sqrt(np.pi)))**3, out=w)
+    w = np.divide(r, h)
+    np.square(w, out=w)
+    np.negative(w, out=w)
+    np.exp(w, out=w)
+    np.multiply(w, (1.0 / (h * np.sqrt(np.pi))) ** 3, out=w)
 
-	return w
-	
-# @profile	
-def gradW( x, y, z, h ):
-	# OPTIMIZED VERSION
-	"""
-	Gradient of the Gausssian Smoothing kernel (3D)
-	x     is a vector/matrix of x positions
-	y     is a vector/matrix of y positions
-	z     is a vector/matrix of z positions
-	h     is the smoothing length
-	wx, wy, wz     is the evaluated gradient
-	"""
-	# initalize the arrays
-	r = np.empty(x.shape, dtype=x.dtype)
-	wx = np.empty(x.shape, dtype=x.dtype)
-	wy = np.empty(y.shape, dtype=y.dtype)
-	wz = np.empty(z.shape, dtype=z.dtype)
+    return w
 
-	# calculate the gradient
-	np.square(x, out=r)
-	np.add(r, np.square(y), out=r)
-	np.add(r, np.square(z), out=r)
-	
-	np.divide(r , -h**2, out=r)
-	np.exp(r, out=r)
-	np.multiply(r, -2 / h**5 / (np.pi) ** (3/2), out=r)
 
-	np.multiply(r, x, out=wx)
-	np.multiply(r, y, out=wy)
-	np.multiply(r, z, out=wz)
-	
-	return wx, wy, wz
-	
-# @profile	
+# @profile
+def gradW(x, y, z, h):
+    # OPTIMIZED VERSION
+    """
+    Gradient of the Gausssian Smoothing kernel (3D)
+    x     is a vector/matrix of x positions
+    y     is a vector/matrix of y positions
+    z     is a vector/matrix of z positions
+    h     is the smoothing length
+    wx, wy, wz     is the evaluated gradient
+    """
+    # initalize the arrays
+    r = np.empty(x.shape, dtype=x.dtype)
+    wx = np.empty(x.shape, dtype=x.dtype)
+    wy = np.empty(y.shape, dtype=y.dtype)
+    wz = np.empty(z.shape, dtype=z.dtype)
+
+    # calculate the gradient
+    np.square(x, out=r)
+    np.add(r, np.square(y), out=r)
+    np.add(r, np.square(z), out=r)
+
+    np.divide(r, -(h**2), out=r)
+    np.exp(r, out=r)
+    np.multiply(r, -2 / h**5 / (np.pi) ** (3 / 2), out=r)
+
+    np.multiply(r, x, out=wx)
+    np.multiply(r, y, out=wy)
+    np.multiply(r, z, out=wz)
+
+    return wx, wy, wz
+
+
+# @profile
 def getPairwiseSeparations(ri, rj):
     """
     Get pairwise separations between 2 sets of coordinates using numpy.subtract.outer()
@@ -76,181 +80,189 @@ def getPairwiseSeparations(ri, rj):
 
     return dx, dy, dz
 
+
 # @profile
-def getDensity( r, pos, m, h ):
-	"""
-	Get Density at sampling loctions from SPH particle distribution
-	r     is an M x 3 matrix of sampling locations
-	pos   is an N x 3 matrix of SPH particle positions
-	m     is the particle mass
-	h     is the smoothing length
-	rho   is M x 1 vector of densities
-	"""
-	
-	M = r.shape[0]
-	
-	dx, dy, dz = getPairwiseSeparations( r, pos )
-	
-	rho = np.sum( m * W(dx, dy, dz, h), 1 ).reshape((M,1))
-	
-	return rho
-	
-# @profile	
+def getDensity(r, pos, m, h):
+    """
+    Get Density at sampling loctions from SPH particle distribution
+    r     is an M x 3 matrix of sampling locations
+    pos   is an N x 3 matrix of SPH particle positions
+    m     is the particle mass
+    h     is the smoothing length
+    rho   is M x 1 vector of densities
+    """
+
+    M = r.shape[0]
+
+    dx, dy, dz = getPairwiseSeparations(r, pos)
+
+    rho = np.sum(m * W(dx, dy, dz, h), 1).reshape((M, 1))
+
+    return rho
+
+
+# @profile
 def getPressure(rho, k, n):
-	"""
-	Equation of State
-	rho   vector of densities
-	k     equation of state constant
-	n     polytropic index
-	P     pressure
-	"""
-	
-	P = k * rho**(1+1/n)
-	
-	return P
-	
+    """
+    Equation of State
+    rho   vector of densities
+    k     equation of state constant
+    n     polytropic index
+    P     pressure
+    """
+
+    P = k * rho ** (1 + 1 / n)
+
+    return P
+
+
 # @profile
-def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
-	"""
-	Calculate the acceleration on each SPH particle
-	pos   is an N x 3 matrix of positions
-	vel   is an N x 3 matrix of velocities
-	m     is the particle mass
-	h     is the smoothing length
-	k     equation of state constant
-	n     polytropic index
-	lmbda external force constant
-	nu    viscosity
-	a     is N x 3 matrix of accelerations
-	"""
-	
-	N = pos.shape[0]
-	
-	# Calculate densities at the position of the particles
-	rho = getDensity( pos, pos, m, h )
-	
-	# Get the pressures
-	P = getPressure(rho, k, n)
-	
-	# Get pairwise distances and gradients
-	dx, dy, dz = getPairwiseSeparations( pos, pos )
-	dWx, dWy, dWz = gradW( dx, dy, dz, h )
-	
-	# Add Pressure contribution to accelerations
-	ax = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWx, 1).reshape((N,1))
-	ay = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWy, 1).reshape((N,1))
-	az = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWz, 1).reshape((N,1))
-	
-	# pack together the acceleration components
-	a = np.hstack((ax,ay,az))
-	
-	# Add external potential force
-	a -= lmbda * pos
-	
-	# Add viscosity
-	a -= nu * vel
-	
-	return a
-	
+def getAcc(pos, vel, m, h, k, n, lmbda, nu):
+    """
+    Calculate the acceleration on each SPH particle
+    pos   is an N x 3 matrix of positions
+    vel   is an N x 3 matrix of velocities
+    m     is the particle mass
+    h     is the smoothing length
+    k     equation of state constant
+    n     polytropic index
+    lmbda external force constant
+    nu    viscosity
+    a     is N x 3 matrix of accelerations
+    """
+
+    N = pos.shape[0]
+
+    # Calculate densities at the position of the particles
+    rho = getDensity(pos, pos, m, h)
+
+    # Get the pressures
+    P = getPressure(rho, k, n)
+
+    # Get pairwise distances and gradients
+    dx, dy, dz = getPairwiseSeparations(pos, pos)
+    dWx, dWy, dWz = gradW(dx, dy, dz, h)
+
+    # Add Pressure contribution to accelerations
+    ax = -np.sum(m * (P / rho**2 + P.T / rho.T**2) * dWx, 1).reshape((N, 1))
+    ay = -np.sum(m * (P / rho**2 + P.T / rho.T**2) * dWy, 1).reshape((N, 1))
+    az = -np.sum(m * (P / rho**2 + P.T / rho.T**2) * dWz, 1).reshape((N, 1))
+
+    # pack together the acceleration components
+    a = np.hstack((ax, ay, az))
+
+    # Add external potential force
+    a -= lmbda * pos
+
+    # Add viscosity
+    a -= nu * vel
+
+    return a
+
 
 @profile
 def main():
-	""" SPH simulation """
-	
-	# Simulation parameters
-	N         = 1000    # Number of particles
-	t         = 0      # current time of the simulation
-	tEnd      = 12     # time at which simulation ends
-	dt        = 0.04   # timestep
-	M         = 2      # star mass
-	R         = 0.75   # star radius
-	h         = 0.1    # smoothing length
-	k         = 0.1    # equation of state constant
-	n         = 1      # polytropic index
-	nu        = 1      # damping
-	plotRealTime = True # switch on for plotting as the simulation goes along
-	
-	# Generate Initial Conditions
-	np.random.seed(42)            # set the random number generator seed
-	
-	lmbda = 2*k*(1+n)*np.pi**(-3/(2*n)) * (M*gamma(5/2+n)/R**3/gamma(1+n))**(1/n) / R**2  # ~ 2.01
-	m     = M/N                    # single particle mass
-	pos   = np.random.randn(N,3)   # randomly selected positions and velocities
-	vel   = np.zeros(pos.shape)
-	
-	# calculate initial gravitational accelerations
-	acc = getAcc( pos, vel, m, h, k, n, lmbda, nu )
-	
-	# number of timesteps
-	Nt = int(np.ceil(tEnd/dt))
-	
-	# prep figure
-	fig = plt.figure(figsize=(4,5), dpi=80)
-	grid = plt.GridSpec(3, 1, wspace=0.0, hspace=0.3)
-	ax1 = plt.subplot(grid[0:2,0])
-	ax2 = plt.subplot(grid[2,0])
-	rr = np.zeros((100,3))
-	rlin = np.linspace(0,1,100)
-	rr[:,0] =rlin
-	rho_analytic = lmbda/(4*k) * (R**2 - rlin**2)
-	
-	# Simulation Main Loop
-	for i in range(Nt):
-		# (1/2) kick
-		vel += acc * dt/2
-		
-		# drift
-		pos += vel * dt
-		
-		# update accelerations
-		acc = getAcc( pos, vel, m, h, k, n, lmbda, nu )
-		
-		# (1/2) kick
-		vel += acc * dt/2
-		
-		# update time
-		t += dt
-		
-		# get density for plotting
-		rho = getDensity( pos, pos, m, h )
-		
-		# plot in real time
-		if plotRealTime or (i == Nt-1):
-			plt.sca(ax1)
-			plt.cla()
-			cval = np.minimum((rho-3)/3,1).flatten()
-			plt.scatter(pos[:,0],pos[:,1], c=cval, cmap=plt.cm.autumn, s=10, alpha=0.5)
-			ax1.set(xlim=(-1.4, 1.4), ylim=(-1.2, 1.2))
-			ax1.set_aspect('equal', 'box')
-			ax1.set_xticks([-1,0,1])
-			ax1.set_yticks([-1,0,1])
-			ax1.set_facecolor('black')
-			ax1.set_facecolor((.1,.1,.1))
-			
-			plt.sca(ax2)
-			plt.cla()
-			ax2.set(xlim=(0, 1), ylim=(0, 3))
-			ax2.set_aspect(0.1)
-			plt.plot(rlin, rho_analytic, color='gray', linewidth=2)
-			rho_radial = getDensity( rr, pos, m, h )
-			plt.plot(rlin, rho_radial, color='blue')
-			# plt.pause(0.001)
-	    
-	
-	
-	# add labels/legend
-	plt.sca(ax2)
-	plt.xlabel('radius')
-	plt.ylabel('density')
-	
-	# Save figure
-	plt.savefig('sph.png',dpi=240)
-	# plt.show()
-	    
-	return 0
-	
+    """SPH simulation"""
+
+    # Simulation parameters
+    N = 1000  # Number of particles
+    t = 0  # current time of the simulation
+    tEnd = 12  # time at which simulation ends
+    dt = 0.04  # timestep
+    M = 2  # star mass
+    R = 0.75  # star radius
+    h = 0.1  # smoothing length
+    k = 0.1  # equation of state constant
+    n = 1  # polytropic index
+    nu = 1  # damping
+    plotRealTime = True  # switch on for plotting as the simulation goes along
+
+    # Generate Initial Conditions
+    np.random.seed(42)  # set the random number generator seed
+
+    lmbda = (
+        2
+        * k
+        * (1 + n)
+        * np.pi ** (-3 / (2 * n))
+        * (M * gamma(5 / 2 + n) / R**3 / gamma(1 + n)) ** (1 / n)
+        / R**2
+    )  # ~ 2.01
+    m = M / N  # single particle mass
+    pos = np.random.randn(N, 3)  # randomly selected positions and velocities
+    vel = np.zeros(pos.shape)
+
+    # calculate initial gravitational accelerations
+    acc = getAcc(pos, vel, m, h, k, n, lmbda, nu)
+
+    # number of timesteps
+    Nt = int(np.ceil(tEnd / dt))
+
+    # prep figure
+    fig = plt.figure(figsize=(4, 5), dpi=80)
+    grid = plt.GridSpec(3, 1, wspace=0.0, hspace=0.3)
+    ax1 = plt.subplot(grid[0:2, 0])
+    ax2 = plt.subplot(grid[2, 0])
+    rr = np.zeros((100, 3))
+    rlin = np.linspace(0, 1, 100)
+    rr[:, 0] = rlin
+    rho_analytic = lmbda / (4 * k) * (R**2 - rlin**2)
+
+    # Simulation Main Loop
+    for i in range(Nt):
+        # (1/2) kick
+        vel += acc * dt / 2
+
+        # drift
+        pos += vel * dt
+
+        # update accelerations
+        acc = getAcc(pos, vel, m, h, k, n, lmbda, nu)
+
+        # (1/2) kick
+        vel += acc * dt / 2
+
+        # update time
+        t += dt
+
+        # get density for plotting
+        rho = getDensity(pos, pos, m, h)
+
+        # plot in real time
+        if plotRealTime or (i == Nt - 1):
+            plt.sca(ax1)
+            plt.cla()
+            cval = np.minimum((rho - 3) / 3, 1).flatten()
+            plt.scatter(
+                pos[:, 0], pos[:, 1], c=cval, cmap=plt.cm.autumn, s=10, alpha=0.5
+            )
+            ax1.set(xlim=(-1.4, 1.4), ylim=(-1.2, 1.2))
+            ax1.set_aspect("equal", "box")
+            ax1.set_xticks([-1, 0, 1])
+            ax1.set_yticks([-1, 0, 1])
+            ax1.set_facecolor("black")
+            ax1.set_facecolor((0.1, 0.1, 0.1))
+
+            plt.sca(ax2)
+            plt.cla()
+            ax2.set(xlim=(0, 1), ylim=(0, 3))
+            ax2.set_aspect(0.1)
+            plt.plot(rlin, rho_analytic, color="gray", linewidth=2)
+            rho_radial = getDensity(rr, pos, m, h)
+            plt.plot(rlin, rho_radial, color="blue")
+            # plt.pause(0.001)
+
+    # add labels/legend
+    plt.sca(ax2)
+    plt.xlabel("radius")
+    plt.ylabel("density")
+
+    # Save figure
+    plt.savefig("sph.png", dpi=240)
+    # plt.show()
+
+    return 0
 
 
-  
-if __name__== "__main__":
-  main()
+if __name__ == "__main__":
+    main()
