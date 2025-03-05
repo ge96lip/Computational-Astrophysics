@@ -138,7 +138,7 @@ if __name__ == '__main__':
     print("Dask dashboard available at:", client.dashboard_link)
 
     # Simulation parameters
-    N = 10000                # Number of particles
+    N = 1000                # Number of particles
     M = 2 / N               # Mass per particle
     h = 0.1                 # Smoothing length
     pos = np.random.randn(N, 3)  # Initial positions

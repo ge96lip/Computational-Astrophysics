@@ -56,7 +56,7 @@ def getAcc(pos, vel, m, h, k, n, lmbda, nu):
     return a
 
 def main():
-    N, t, tEnd, dt = 10000, 0, 12, 0.04
+    N, t, tEnd, dt = 1000, 0, 12, 0.04
     M, R, h, k, n, nu = 2, 0.75, 0.1, 0.1, 1, 1
     plotRealTime = False
 

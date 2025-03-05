@@ -2,8 +2,7 @@ from dask.distributed import Client
 import numpy as np
 import pytest
 import dask.array as da
-from dask_array import getAcc as getAcc_dask
-from dask_array_v2 import getAcc as getAcc_dask_v2
+from dask_array import getAcc as getAcc
 from sph import getAcc as getAcc_sph
 from scipy.special import gamma
 
@@ -35,7 +34,7 @@ def test_daskAcc():
     vel = da.from_array(vel_np, chunks=(chunk_size, 3))
 
     # Compute initial accelerations (force immediate computation for use in the loop)
-    acc_dask = getAcc_dask(pos, vel, m, h, k, n, lmbda, nu).compute()
+    acc_dask = getAcc(pos, vel, m, h, k, n, lmbda, nu).compute()
 
     M         = 2      # star mass
     pos = np.random.randn(N, 3)  # Initial positions
@@ -47,11 +46,9 @@ def test_daskAcc():
 
     lmbda = 2*k*(1+n)*np.pi**(-3/(2*n)) * (M*gamma(5/2+n)/R**3/gamma(1+n))**(1/n) / R**2  # ~ 2.01
     m     = M/N                    # single particle mass
-    pos   = np.random.randn(N,3)   # randomly selected positions and velocities
-    vel   = np.zeros(pos.shape)
 
     # calculate initial gravitational accelerations
-    acc_original = getAcc_sph( pos, vel, m, h, k, n, lmbda, nu )
+    acc_original = getAcc_sph( pos_np, vel_np, m, h, k, n, lmbda, nu )
 
     # Check that the values are close
     assert np.allclose(acc_dask, acc_original, atol=1e-6), "Rho values differ between methods!"

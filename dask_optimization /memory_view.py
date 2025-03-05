@@ -259,7 +259,7 @@ def main():
     """ SPH simulation """
 
     # Simulation parameters
-    N = 10000
+    N = 1000
     t = 0
     tEnd = 12
     dt = 0.04

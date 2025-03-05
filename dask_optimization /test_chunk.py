@@ -5,7 +5,6 @@ import numpy as np
 from dask.distributed import Client, wait
 import math
 from sph import getAcc as getAcc_sph
-# For gamma calculations
 gamma = math.gamma
 
 def W(x, y, z, h):
@@ -182,6 +181,6 @@ if __name__ == '__main__':
     client.close()
     acc_original = getAcc_sph( pos, vel, M, h, k, n, LAMBDA, 1 )
 
-    assert np.allclose(acc, acc_original, atol=1e-6), "Rho values differ between methods!"
+    assert np.allclose(acc, acc_original, atol=1e-6), "Values differ between methods!"
     
     print("\nSimulation complete. Results:", results)

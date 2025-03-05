@@ -1,8 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import gamma
-from scipy.spatial import cKDTree
-import numexpr as ne
 
 """
 Create Your Own Smoothed-Particle-Hydrodynamics Simulation (With Python)
@@ -26,16 +24,7 @@ def W( x, y, z, h ):
 	w = (1.0 / (h*np.sqrt(np.pi)))**3 * np.exp( -r**2 / h**2)
 	
 	return w
-def optimizedW(x, y, z, h):
-    """
-    Gaussian Smoothing kernel (3D)
-    """
-    h_np = np.asarray(h)
-    r = np.sqrt(x**2 + y**2 + z**2)
-    mask = r <= h  # Only consider distances within h
-    w = np.zeros_like(r)
-    w[mask] = (1.0 / (h_np * np.sqrt(np.pi)))**3 * np.exp(-r[mask]**2 / h_np**2)
-    return w
+	
 	
 def gradW( x, y, z, h ):
 	"""
@@ -55,25 +44,7 @@ def gradW( x, y, z, h ):
 	wz = n * z
 	
 	return wx, wy, wz
-def gradW_float32_ne(x, y, z, h, N):
-    """Optimized gradient computation using numexpr."""
-    h_np = np.asarray(h)  # Ensure `h` is a NumPy array
-
-    x_np = np.asarray(x)
-    y_np = np.asarray(y)
-    z_np = np.asarray(z)
-    pi = np.pi
-    r2 = ne.evaluate("x_np**2 + y_np**2 + z_np**2")
-    exp_term = ne.evaluate("exp(-r2 / h_np**2)")
-    scale = ne.evaluate("-2 * exp_term / (h_np**5 * (pi**(3/2)))")
-
-    wx = ne.evaluate("scale * x_np")
-    wy = ne.evaluate("scale * y_np")
-    wz = ne.evaluate("scale * z_np")
-
-    return wx, wy, wz
-
-
+	
 	
 def getPairwiseSeparations( ri, rj ):
 	"""
@@ -102,26 +73,8 @@ def getPairwiseSeparations( ri, rj ):
 	dz = riz - rjz.T
 	
 	return dx, dy, dz
-def getPairwiseSeparations_inplace(ri, rj):
-    """
-    In-place computation to minimize memory allocations.
-    """
-    M, N = rj.shape[0], rj.shape[0]
-
-    dx = np.empty((M, N), dtype=np.float32)
-    dy = np.empty((M, N), dtype=np.float32)
-    dz = np.empty((M, N), dtype=np.float32)
-    #ri = ri.astype(np.float32)
-    ri = np.asarray(ri).astype(np.float32) 
-    #rj = rj.astype(np.float32)
-    rj = np.asarray(rj).astype(np.float32) 
-    np.subtract(ri[:, 0][:, None], rj[:, 0][None, :], out=dx)
-    np.subtract(ri[:, 1][:, None], rj[:, 1][None, :], out=dy)
-    np.subtract(ri[:, 2][:, None], rj[:, 2][None, :], out=dz)
-
-    return dx, dy, dz
 	
-#@profile
+
 def getDensity( r, pos, m, h ):
 	"""
 	Get Density at sampling loctions from SPH particle distribution
@@ -134,13 +87,13 @@ def getDensity( r, pos, m, h ):
 	
 	M = r.shape[0]
 	
-	dx, dy, dz = getPairwiseSeparations_inplace( r, pos )
+	dx, dy, dz = getPairwiseSeparations( r, pos );
 	
-	rho = np.sum( m * optimizedW(dx, dy, dz, h), 1 ).reshape((M,1))
+	rho = np.sum( m * W(dx, dy, dz, h), 1 ).reshape((M,1))
 	
 	return rho
 	
-
+	
 def getPressure(rho, k, n):
 	"""
 	Equation of State
@@ -172,70 +125,38 @@ def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	N = pos.shape[0]
 	
 	# Calculate densities at the position of the particles
-	rho = getDensity(pos, pos, m, h )
+	rho = getDensity( pos, pos, m, h )
 	
 	# Get the pressures
 	P = getPressure(rho, k, n)
 	
 	# Get pairwise distances and gradients
-	dx, dy, dz = getPairwiseSeparations_inplace( pos, pos )
-	dWx, dWy, dWz = gradW_float32_ne(dx, dy, dz, h, N) #gradW( dx, dy, dz, h )
+	dx, dy, dz = getPairwiseSeparations( pos, pos )
+	dWx, dWy, dWz = gradW( dx, dy, dz, h )
 	
 	# Add Pressure contribution to accelerations
-	temp = P.T /rho.T
-	scale = ne.evaluate("m * ( P/rho**2 + temp**2)")
-	ax = - ne.evaluate("sum( scale * dWx, 1)").reshape((N,1))
-	ay = - ne.evaluate("sum( scale * dWy, 1)").reshape((N,1))
-	az = - ne.evaluate("sum( scale * dWz, 1)").reshape((N,1))
- 
-	#ax = - np.sum( m * ( P/rho**2 + P.T/rho.T**2) * dWx, 1).reshape((N,1))
-	#ay = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWy, 1).reshape((N,1))
-	#az = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWz, 1).reshape((N,1))
+	ax = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWx, 1).reshape((N,1))
+	ay = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWy, 1).reshape((N,1))
+	az = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWz, 1).reshape((N,1))
 	
 	# pack together the acceleration components
 	a = np.hstack((ax,ay,az))
 	
 	# Add external potential force
-	# do everything in place
-	a -= lmbda * pos - nu * vel
+	a -= lmbda * pos
 	
 	# Add viscosity
-	#a -= nu * vel
+	a -= nu * vel
 	
 	return a
-def print(ax1, ax2, rlin, rho_analytic, rr, pos, m, h): 
-    plt.sca(ax1)
-    plt.cla()
-    rho = getDensity( pos, pos, m, h )
-    cval = np.minimum((rho-3)/3,1).flatten() 
-    plt.scatter(pos[:,0],pos[:,1], c=cval, cmap=plt.cm.autumn, s=10, alpha=0.5)
-    ax1.set(xlim=(-1.4, 1.4), ylim=(-1.2, 1.2))
-    ax1.set_aspect('equal', 'box')
-    ax1.set_xticks([-1,0,1])
-    ax1.set_yticks([-1,0,1])
-    ax1.set_facecolor('black')
-    ax1.set_facecolor((.1,.1,.1))
-    
-    plt.sca(ax2)
-    plt.cla()
-    ax2.set(xlim=(0, 1), ylim=(0, 3))
-    ax2.set_aspect(0.1)
-    plt.plot(rlin, rho_analytic, color='gray', linewidth=2)
-    rho_radial = getDensity( rr, pos, m, h )
-    plt.plot(rlin, rho_radial, color='blue')
-    plt.pause(0.001)
-    plt.sca(ax2)
-    # add labels
-    plt.xlabel('radius')
-    plt.ylabel('density')
-    plt.savefig('sph.png',dpi=240)
-    plt.show()
 	
+
+
 def main():
 	""" SPH simulation """
 
 	# Simulation parameters
-	N         = 10000    # Number of particles
+	N         = 1000    # Number of particles
 	t         = 0      # current time of the simulation
 	tEnd      = 12     # time at which simulation ends
 	dt        = 0.04   # timestep
@@ -247,7 +168,8 @@ def main():
 	nu        = 1      # damping
 	plotRealTime = False # switch on for plotting as the simulation goes along
 
-	np.random.seed(42)   
+	# Generate Initial Conditions
+	np.random.seed(42)            # set the random number generator seed
 
 	lmbda = 2*k*(1+n)*np.pi**(-3/(2*n)) * (M*gamma(5/2+n)/R**3/gamma(1+n))**(1/n) / R**2  # ~ 2.01
 	m     = M/N                    # single particle mass
@@ -274,6 +196,7 @@ def main():
 	for i in range(Nt):
 		# (1/2) kick
 		vel += acc * dt/2
+		
 		# drift
 		pos += vel * dt
 		
@@ -285,8 +208,39 @@ def main():
 		
 		# update time
 		t += dt
+		
 		if plotRealTime:
-			plotRealTime(ax1, ax2, rlin, rho_analytic, rr, pos, m, h)
+			plt.sca(ax1)
+			plt.cla()
+			rho = getDensity( pos, pos, m, h )
+			cval = np.minimum((rho-3)/3,1).flatten() 
+			plt.scatter(pos[:,0],pos[:,1], c=cval, cmap=plt.cm.autumn, s=10, alpha=0.5)
+			ax1.set(xlim=(-1.4, 1.4), ylim=(-1.2, 1.2))
+			ax1.set_aspect('equal', 'box')
+			ax1.set_xticks([-1,0,1])
+			ax1.set_yticks([-1,0,1])
+			ax1.set_facecolor('black')
+			ax1.set_facecolor((.1,.1,.1))
+			
+			plt.sca(ax2)
+			plt.cla()
+			ax2.set(xlim=(0, 1), ylim=(0, 3))
+			ax2.set_aspect(0.1)
+			plt.plot(rlin, rho_analytic, color='gray', linewidth=2)
+			rho_radial = getDensity( rr, pos, m, h )
+			plt.plot(rlin, rho_radial, color='blue')
+			plt.pause(0.001)
+			
+		if plotRealTime: 
+			# add labels/legend
+			plt.sca(ax2)
+			plt.xlabel('radius')
+			plt.ylabel('density')
+			
+			# Save figure
+			plt.savefig('sph.png',dpi=240)
+			plt.show()
+	    
 	return 0
   
 if __name__== "__main__":

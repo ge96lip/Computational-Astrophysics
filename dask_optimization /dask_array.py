@@ -169,13 +169,8 @@ def getAcc(pos, vel, m, h, k, n, lmbda, nu):
     #dx, dy, dz = da.map_overlap(getPairwiseSeparations, pos, pos, depth=1, boundary='reflect')
     dWx, dWy, dWz = gradW(dx, dy, dz, h)
     
-    dWx = da.diag(dWx).reshape((N, 1))
-    dWy = da.diag(dWy).reshape((N, 1))
-    dWz = da.diag(dWz).reshape((N, 1))
-    
     # Compute the symmetric pressure term.
-    # Note: P and rho are of shape (N,1), so term is also (N,1)
-    term = (P / rho**2) + (P / rho**2)
+    term = (P / rho**2) + (P.T / rho.T**2)
     
     # Compute acceleration components
     ax = - da.sum(m * term * dWx, axis=1).reshape((N, 1))
@@ -186,9 +181,10 @@ def getAcc(pos, vel, m, h, k, n, lmbda, nu):
     a = da.hstack([ax, ay, az])
     
     # Add external potential and viscous damping
-    a = a - lmbda * pos - nu * vel
+    a = (a - lmbda * pos) - nu * vel
 
     return a
+  
 def getAcc_wrapper(pos_chunk, vel_chunk, m, h, k, n, lmbda, nu):
     return getAcc(pos_chunk, vel_chunk, m, h, k, n, lmbda, nu)
   
@@ -199,7 +195,7 @@ def main():
     #print(f"Started execution of dask_array.py")
     #start_time = time.time() 
     # Simulation parameters
-    N = 10000            # Number of particles
+    N = 1000            # Number of particles
     t = 0              # Current simulation time
     tEnd = 12          # End time
     dt = 0.04          # Timestep
