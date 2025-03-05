@@ -31,7 +31,7 @@ def getDensity(r, pos, m, h):
 def getPressure(rho, k, n):
     return k * rho**(1 + 1 / n)
 
-@profile
+#@profile
 def getAcc(pos, vel, m, h, k, n, lmbda, nu):
     N = pos.shape[0]
 
@@ -88,9 +88,8 @@ def main():
         vel += acc * dt / 2
         t += dt
 
-        rho = getDensity(pos, pos, m, h)
-
         if plotRealTime:
+            rho = getDensity(pos, pos, m, h)
             plt.sca(ax1)
             plt.cla()
             cval = np.minimum((rho - 3) / 3, 1).flatten()

@@ -79,7 +79,7 @@ def compute_acc_chunk(i_start, i_end, m, P, rho, dWx, dWy, dWz):
     az_chunk = -np.sum(terms * dWz[i_start:i_end, :], axis=1, keepdims=True)
     return ax_chunk, ay_chunk, az_chunk
 
-@profile
+#@profile
 def getAcc(pos, vel, m, h, k, n, lmbda, nu, num_chunks=10):
     """
     Calculate the acceleration on each SPH particle using parallel summation.
@@ -153,7 +153,7 @@ if __name__ == '__main__':
     # Compute the external force constant LAMBDA
     LAMBDA = 2 * k * (1 + n) * np.pi**(-3 / (2 * n)) * \
              (M * gamma(5/2 + n) / R**3 / gamma(1 + n))**(1/n) / R**2
-    num_chunks = 1
+    num_chunks = 10
 
     # Initial acceleration
     acc = getAcc(pos, vel, M, h, k, n, LAMBDA, 1, num_chunks)

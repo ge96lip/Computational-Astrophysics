@@ -35,7 +35,52 @@ def gradW(x, y, z, h):
     wy = n * y
     wz = n * z
     return wx, wy, wz
+def pairwise_sep_block(ri_chunk, rj):
+    """
+    Compute pairwise separations for a chunk of `ri` against the full `rj`.
+    
+    Parameters:
+      ri_chunk : a subset of `ri` (chunked along M dimension)
+      rj       : full `rj` array
+    
+    Returns:
+      dx, dy, dz : chunks of M_chunk x N separations
+    """
+    dx = ri_chunk[:, 0, None] - rj[:, 0]  # Broadcasting for chunked computation
+    dy = ri_chunk[:, 1, None] - rj[:, 1]
+    dz = ri_chunk[:, 2, None] - rj[:, 2]
+    
+    return da.stack([dx, dy, dz], axis=0)
+  
+def getPairwiseSeparations_da(ri, rj):
+    result = da.map_blocks(
+        pairwise_sep_block, ri, rj,
+        dtype=ri.dtype, drop_axis=0, new_axis=0
+    )
 
+    # Let Dask infer the correct shape dynamically
+    dx, dy, dz = result[:3]  # Extract first three dimensions
+
+    return dx, dy, dz
+  
+def getPairwiseSeparations_chunked(ri, rj):
+    """
+    Get pairwise separations between two sets of positions using Dask arrays with chunking.
+    
+    Parameters:
+      ri : an M x 3 Dask array (first set of points)
+      rj : an N x 3 Dask array (second set of points)
+      
+    Returns:
+      dx, dy, dz : M x N Dask arrays of separations in each coordinate.
+    """
+    # Use map_blocks to apply the function to each chunk
+    dx = da.map_blocks(lambda ri_chunk, rj_chunk: getPairwiseSeparations(ri_chunk, rj_chunk)[0], ri, rj, dtype=float)
+    dy = da.map_blocks(lambda ri_chunk, rj_chunk: getPairwiseSeparations(ri_chunk, rj_chunk)[1], ri, rj, dtype=float)
+    dz = da.map_blocks(lambda ri_chunk, rj_chunk: getPairwiseSeparations(ri_chunk, rj_chunk)[2], ri, rj, dtype=float)
+    
+    return dx, dy, dz
+  
 def getPairwiseSeparations(ri, rj):
     """
     Get pairwise separations between two sets of positions using Dask arrays.
@@ -120,13 +165,19 @@ def getAcc(pos, vel, m, h, k, n, lmbda, nu):
     P = getPressure(rho, k, n)
     
     # Compute pairwise separations and gradients of the kernel
-    #dx, dy, dz = getPairwiseSeparations(pos, pos)
-    dx, dy, dz = da.map_overlap(getPairwiseSeparations, pos, pos, depth=1, boundary='reflect')
+    dx, dy, dz = getPairwiseSeparations(pos, pos)
+    #dx, dy, dz = da.map_overlap(getPairwiseSeparations, pos, pos, depth=1, boundary='reflect')
     dWx, dWy, dWz = gradW(dx, dy, dz, h)
     
+    dWx = da.diag(dWx).reshape((N, 1))
+    dWy = da.diag(dWy).reshape((N, 1))
+    dWz = da.diag(dWz).reshape((N, 1))
+    
     # Compute the symmetric pressure term.
-    # Note: P and rho are of shape (N,1) so we use their transposes to broadcast.
-    term = (P / rho**2) + (P.T / (rho.T**2))
+    # Note: P and rho are of shape (N,1), so term is also (N,1)
+    term = (P / rho**2) + (P / rho**2)
+    
+    # Compute acceleration components
     ax = - da.sum(m * term * dWx, axis=1).reshape((N, 1))
     ay = - da.sum(m * term * dWy, axis=1).reshape((N, 1))
     az = - da.sum(m * term * dWz, axis=1).reshape((N, 1))
@@ -140,14 +191,15 @@ def getAcc(pos, vel, m, h, k, n, lmbda, nu):
     return a
 def getAcc_wrapper(pos_chunk, vel_chunk, m, h, k, n, lmbda, nu):
     return getAcc(pos_chunk, vel_chunk, m, h, k, n, lmbda, nu)
+  
 def main():
     """
     SPH simulation using Dask arrays for parallel computation.
     """
-    print(f"Started execution of dask_array.py")
-    start_time = time.time() 
+    #print(f"Started execution of dask_array.py")
+    #start_time = time.time() 
     # Simulation parameters
-    N = 1000            # Number of particles
+    N = 10000            # Number of particles
     t = 0              # Current simulation time
     tEnd = 12          # End time
     dt = 0.04          # Timestep
@@ -165,7 +217,7 @@ def main():
     m = M_val / N  # Mass per particle
     
     # Convert to Dask arrays with a specified chunk size.
-    chunk_size = 250
+    chunk_size = 2050
 
     pos = da.random.standard_normal((N, 3), chunks=(chunk_size, 3))
     vel = da.zeros((N, 3), chunks=(chunk_size, 3))
@@ -173,9 +225,9 @@ def main():
     # Compute initial accelerations (force immediate computation for use in the loop)
     #acc = da.map_overlap(getAcc, pos, vel, m, h, k, n, lmbda, nu, depth=1, boundary='reflect')
     acc = getAcc(pos, vel, m, h, k, n, lmbda, nu).compute()
-    print("type acc after first compute: ", type(acc))
+    #print("type acc after first compute: ", type(acc))
     Nt = int(np.ceil(tEnd / dt))
-    print("Number of timesteps:", Nt)
+    #print("Number of timesteps:", Nt)
     # Prepare figure for plotting
     fig = plt.figure(figsize=(4, 5), dpi=80)
     grid = plt.GridSpec(3, 1, wspace=0.0, hspace=0.3)
@@ -201,8 +253,8 @@ def main():
         # Increment time
         t += dt
         
-        if i % 100 == 0:
-            print(f"Completed {i} timesteps")
+        #if i % 100 == 0:
+         #   print(f"Completed {i} timesteps")
             
         if plotRealTime:
             ax1.cla()
@@ -234,8 +286,8 @@ def main():
         plt.savefig('sph.png', dpi=240)
         plt.show()
         
-    end_time = time.time()
-    print(f"Execution time of dask_array.py: {end_time - start_time} seconds")
+    #end_time = time.time()
+    #print(f"Execution time of dask_array.py: {end_time - start_time} seconds")
     return 0
 
 if __name__ == "__main__":

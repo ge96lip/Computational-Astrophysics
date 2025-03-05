@@ -213,7 +213,7 @@ def calculate_a_npdot(m, P, rho, dWx, dWy, dWz, N):
     ay = -np.sum(np.dot(common_term, dWy), axis=1, keepdims=True)  # (400,1)
     az = -np.sum(np.dot(common_term, dWz), axis=1, keepdims=True)  # (400,1)
     
-@profile 
+#@profile 
 def getAcc(pos, vel, m, h, k, n, lmbda, nu):
     """
     Calculate the acceleration on each SPH particle

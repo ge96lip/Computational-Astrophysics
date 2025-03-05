@@ -141,10 +141,8 @@ def main():
     """
     SPH simulation using Dask arrays for parallel computation.
     """
-    print(f"Started execution of dask_array.py")
-    start_time = time.time() 
     # Simulation parameters
-    N = 1000            # Number of particles
+    N = 10000            # Number of particles
     t = 0              # Current simulation time
     tEnd = 12          # End time
     dt = 0.04          # Timestep
@@ -162,7 +160,7 @@ def main():
     m = M_val / N  # Mass per particle
     
     # Convert to Dask arrays with a specified chunk size.
-    chunk_size = 250
+    chunk_size = 2500
 
     pos = da.random.standard_normal((N, 3), chunks=(chunk_size, 3))
     vel = da.zeros((N, 3), chunks=(chunk_size, 3))
@@ -171,7 +169,6 @@ def main():
     acc = getAcc(pos, vel, m, h, k, n, lmbda, nu).compute()
     
     Nt = int(np.ceil(tEnd / dt))
-    print("Number of timesteps:", Nt)
     # Prepare figure for plotting
     fig = plt.figure(figsize=(4, 5), dpi=80)
     grid = plt.GridSpec(3, 1, wspace=0.0, hspace=0.3)
@@ -198,10 +195,9 @@ def main():
         #vel += acc * dt/2
         # Increment time
         t += dt
-        print("doing something")
         
-        if i % 100 == 0:
-            print(f"Completed {i} timesteps")
+        #if i % 100 == 0:
+            #print(f"Completed {i} timesteps")
             
         if plotRealTime:
             ax1.cla()
@@ -233,8 +229,6 @@ def main():
         plt.savefig('sph.png', dpi=240)
         plt.show()
         
-    end_time = time.time()
-    print(f"Execution time of dask_array.py: {end_time - start_time} seconds")
     return 0
 
 if __name__ == "__main__":
