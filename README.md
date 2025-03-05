@@ -62,3 +62,12 @@ python optimized_sph_simulation.py
 ```
 
 ## Performance Improvements
+
+## Pylint and Black
+First you need to install pylint and black: `pip install pylint black`
+
+In order to rate the code in a specific file use pylint: `pylint ./file_name`
+
+In order to auto-format a specific file use black: `black ./file_name`
+
+The original score of the sph.py file was 0/10. After running the linter, it increased the score to 6.91/10. All of the remaining issues with the score come from the naming conventions. 
