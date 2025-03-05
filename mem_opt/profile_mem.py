@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import gamma
+from memory_profiler import profile
 
 """
 Create Your Own Smoothed-Particle-Hydrodynamics Simulation (With Python)
@@ -25,7 +26,39 @@ def W( x, y, z, h ):
 	
 	return w
 	
-# @profile	
+@profile	
+def opt_gradW( x, y, z, h ):
+	# OPTIMIZED VERSION
+	"""
+	Gradient of the Gausssian Smoothing kernel (3D)
+	x     is a vector/matrix of x positions
+	y     is a vector/matrix of y positions
+	z     is a vector/matrix of z positions
+	h     is the smoothing length
+	wx, wy, wz     is the evaluated gradient
+	"""
+	# initalize the arrays
+	r = np.empty(x.shape, dtype=x.dtype)
+	wx = np.empty(x.shape, dtype=x.dtype)
+	wy = np.empty(y.shape, dtype=y.dtype)
+	wz = np.empty(z.shape, dtype=z.dtype)
+
+	# calculate the gradient
+	np.square(x, out=r)
+	np.add(r, np.square(y), out=r)
+	np.add(r, np.square(z), out=r)
+	
+	np.divide(r , -h**2, out=r)
+	np.exp(r, out=r)
+	np.multiply(r, -2 / h**5 / (np.pi) ** (3/2), out=r)
+
+	np.multiply(r, x, out=wx)
+	np.multiply(r, y, out=wy)
+	np.multiply(r, z, out=wz)
+	
+	return wx, wy, wz
+	
+@profile	
 def gradW( x, y, z, h ):
 	"""
 	Gradient of the Gausssian Smoothing kernel (3D)
@@ -44,8 +77,24 @@ def gradW( x, y, z, h ):
 	wz = n * z
 	
 	return wx, wy, wz
-	
+
 # @profile	
+def opt_getPairwiseSeparations( ri, rj ):
+	# OPTIMIZED VERSION
+	"""
+	Get pairwise desprations between 2 sets of coordinates
+	ri    is an M x 3 matrix of positions
+	rj    is an N x 3 matrix of positions
+	dx, dy, dz   are M x N matrices of separations
+	"""
+
+	dx = np.subtract.outer(ri[:, 0], rj[:, 0])
+	dy = np.subtract.outer(ri[:, 1], rj[:, 1])
+	dz = np.subtract.outer(ri[:, 2], rj[:, 2])
+
+	return dx, dy, dz
+
+# @profile
 def getPairwiseSeparations( ri, rj ):
 	"""
 	Get pairwise desprations between 2 sets of coordinates
@@ -73,7 +122,8 @@ def getPairwiseSeparations( ri, rj ):
 	dz = riz - rjz.T
 	
 	return dx, dy, dz
-	
+
+
 # @profile
 def getDensity( r, pos, m, h ):
 	"""
@@ -107,7 +157,6 @@ def getPressure(rho, k, n):
 	
 	return P
 	
-# @profile
 def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	"""
 	Calculate the acceleration on each SPH particle
@@ -156,7 +205,7 @@ def main():
 	""" SPH simulation """
 	
 	# Simulation parameters
-	N         = 400    # Number of particles
+	N         = 1000    # Number of particles
 	t         = 0      # current time of the simulation
 	tEnd      = 12     # time at which simulation ends
 	dt        = 0.04   # timestep
@@ -246,9 +295,6 @@ def main():
 	# plt.show()
 	    
 	return 0
-	
-
-
   
 if __name__== "__main__":
   main()

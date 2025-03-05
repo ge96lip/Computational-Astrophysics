@@ -87,7 +87,7 @@ def getDensity( r, pos, m, h ):
 	
 	M = r.shape[0]
 	
-	dx, dy, dz = getPairwiseSeparations( r, pos );
+	dx, dy, dz = getPairwiseSeparations( r, pos )
 	
 	rho = np.sum( m * W(dx, dy, dz, h), 1 ).reshape((M,1))
 	
@@ -107,7 +107,7 @@ def getPressure(rho, k, n):
 	
 	return P
 	
-@profile
+# @profile
 def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	"""
 	Calculate the acceleration on each SPH particle
@@ -151,7 +151,7 @@ def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	return a
 	
 
-# @profile
+@profile
 def main():
 	""" SPH simulation """
 	

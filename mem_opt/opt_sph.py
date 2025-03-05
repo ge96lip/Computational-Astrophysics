@@ -10,6 +10,7 @@ Simulate the structure of a star with SPH
 """
 # @profile
 def W( x, y, z, h ):
+	# OPTIMIZED VERSION
 	"""
     Gausssian Smoothing kernel (3D)
 	x     is a vector/matrix of x positions
@@ -18,11 +19,17 @@ def W( x, y, z, h ):
 	h     is the smoothing length
 	w     is the evaluated smoothing function
 	"""
-	
-	r = np.sqrt(x**2 + y**2 + z**2)
-	
-	w = (1.0 / (h*np.sqrt(np.pi)))**3 * np.exp( -r**2 / h**2)
-	
+	r = np.square(x)
+	np.add(r, np.square(y), out=r)
+	np.add(r, np.square(z), out=r)
+	np.sqrt(r, out=r)
+
+	w = np.divide(r, h)
+	np.square(w, out=w)
+	np.negative(w, out=w)
+	np.exp(w, out=w)
+	np.multiply(w, (1.0 / (h * np.sqrt(np.pi)))**3, out=w)
+
 	return w
 	
 # @profile	
@@ -58,20 +65,16 @@ def gradW( x, y, z, h ):
 	return wx, wy, wz
 	
 # @profile	
-def getPairwiseSeparations( ri, rj ):
-	# OPTIMIZED VERSION
-	"""
-	Get pairwise desprations between 2 sets of coordinates
-	ri    is an M x 3 matrix of positions
-	rj    is an N x 3 matrix of positions
-	dx, dy, dz   are M x N matrices of separations
-	"""
+def getPairwiseSeparations(ri, rj):
+    """
+    Get pairwise separations between 2 sets of coordinates using numpy.subtract.outer()
+    to avoid unnecessary memory allocations.
+    """
+    dx = np.subtract.outer(ri[:, 0], rj[:, 0])
+    dy = np.subtract.outer(ri[:, 1], rj[:, 1])
+    dz = np.subtract.outer(ri[:, 2], rj[:, 2])
 
-	dx = np.subtract.outer(ri[:, 0], rj[:, 0])
-	dy = np.subtract.outer(ri[:, 1], rj[:, 1])
-	dz = np.subtract.outer(ri[:, 2], rj[:, 2])
-
-	return dx, dy, dz
+    return dx, dy, dz
 
 # @profile
 def getDensity( r, pos, m, h ):
@@ -86,7 +89,7 @@ def getDensity( r, pos, m, h ):
 	
 	M = r.shape[0]
 	
-	dx, dy, dz = getPairwiseSeparations( r, pos );
+	dx, dy, dz = getPairwiseSeparations( r, pos )
 	
 	rho = np.sum( m * W(dx, dy, dz, h), 1 ).reshape((M,1))
 	
@@ -106,7 +109,7 @@ def getPressure(rho, k, n):
 	
 	return P
 	
-@profile
+# @profile
 def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	"""
 	Calculate the acceleration on each SPH particle
@@ -150,7 +153,7 @@ def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	return a
 	
 
-# @profile
+@profile
 def main():
 	""" SPH simulation """
 	
