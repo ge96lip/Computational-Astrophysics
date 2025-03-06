@@ -157,16 +157,13 @@ if __name__== "__main__":
 
     Simulate the structure of a star with SPH
     """
-    if len(sys.argv) > 1:
-         batch_size = int(sys.argv[1])
-    else:
-         batch_size = 1
+    batch_size = int(sys.argv[2])
 
     multiprocessing.set_start_method('fork', force=True)
     POOL = multiprocessing.Pool() # persistent pool
 
 	# Simulation parameters
-    N         = 1000    # Number of particles
+    N         = int(sys.argv[1])    # Number of particles
     t         = 0      # current time of the simulation
     tEnd      = 12     # time at which simulation ends
     dt        = 0.04   # timestep

@@ -1,5 +1,6 @@
 import numpy as np
 import multiprocessing
+import sys
 
 def W(x, y, z, h):
     """
@@ -154,7 +155,7 @@ if __name__== "__main__":
     POOL = multiprocessing.Pool() # persistent pool
 
 	# Simulation parameters
-    N         = 1000    # Number of particles
+    N         = int(sys.argv[1])    # Number of particles
     t         = 0      # current time of the simulation
     tEnd      = 12     # time at which simulation ends
     dt        = 0.04   # timestep
@@ -180,17 +181,6 @@ if __name__== "__main__":
     # number of timesteps
     Nt = int(np.ceil(tEnd/dt))
 
-
-    # prep figure
-#    fig = plt.figure(figsize=(4,5), dpi=80)
-#    grid = plt.GridSpec(3, 1, wspace=0.0, hspace=0.3)
-#    ax1 = plt.subplot(grid[0:2,0])
-#    ax2 = plt.subplot(grid[2,0])
-#    rr = np.zeros((100,3))
-#    rlin = np.linspace(0,1,100)
-#    rr[:,0] =rlin
-#    rho_analytic = lmbda/(4*k) * (R**2 - rlin**2)
-
     # Simulation Main Loop
     for i in range(Nt):
         # (1/2) kick
@@ -211,36 +201,4 @@ if __name__== "__main__":
         # get density for plotting
         rho = getDensity( pos, pos, m, h )
         
-        # plot in real time
-        #if plotRealTime or (i == Nt-1):
-        #    plt.sca(ax1)
-        #    plt.cla()
-        #    cval = np.minimum((rho-3)/3,1).flatten()
-        #    plt.scatter(pos[:,0],pos[:,1], c=cval, cmap=plt.cm.autumn, s=10, alpha=0.5)
-        #    ax1.set(xlim=(-1.4, 1.4), ylim=(-1.2, 1.2))
-        #    ax1.set_aspect('equal', 'box')
-        #    ax1.set_xticks([-1,0,1])
-        #    ax1.set_yticks([-1,0,1])
-        #    ax1.set_facecolor('black')
-        #    ax1.set_facecolor((.1,.1,.1))
-            
-        #    plt.sca(ax2)
-        #    plt.cla()
-        #    ax2.set(xlim=(0, 1), ylim=(0, 3))
-        #    ax2.set_aspect(0.1)
-        #    plt.plot(rlin, rho_analytic, color='gray', linewidth=2)
-        #    rho_radial = getDensity( rr, pos, m, h )
-        #    plt.plot(rlin, rho_radial, color='blue')
-        #    plt.pause(0.001)
-        
-
-
-    # add labels/legend
-#    plt.sca(ax2)
-#    plt.xlabel('radius')
-#    plt.ylabel('density')
-
-    # Save figure
-    # plt.savefig('sph.png',dpi=240)
-    # plt.show()
     POOL.close()
