@@ -5,11 +5,15 @@ from scipy.spatial import cKDTree
 import numexpr as ne
 
 """
+Original Code: 
 Create Your Own Smoothed-Particle-Hydrodynamics Simulation (With Python)
 Philip Mocz (2020) Princeton Univeristy, @PMocz
 
 Simulate the structure of a star with SPH
+
+This code is an optimized version of the original code.
 """
+
 plt.ioff() 
 def W( x, y, z, h ):
 	"""
@@ -26,6 +30,7 @@ def W( x, y, z, h ):
 	w = (1.0 / (h*np.sqrt(np.pi)))**3 * np.exp( -r**2 / h**2)
 	
 	return w
+
 def optimizedW(x, y, z, h):
     """
     Gaussian Smoothing kernel (3D)

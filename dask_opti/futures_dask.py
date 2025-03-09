@@ -9,6 +9,15 @@ from sph import getAcc as getAcc_sph  # if needed elsewhere
 
 # For gamma calculations
 gamma = math.gamma
+"""
+Original Code: 
+Create Your Own Smoothed-Particle-Hydrodynamics Simulation (With Python)
+Philip Mocz (2020) Princeton Univeristy, @PMocz
+
+Simulate the structure of a star with SPH
+
+This code is an optimized version of the original code.
+"""
 
 def W(x, y, z, h):
     """

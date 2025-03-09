@@ -8,6 +8,15 @@ import multiprocessing as mp
 mp.set_start_method("fork", force=True)
 # Windows: 
 # mp.set_start_method("spawn", force=True)
+"""
+Original Code: 
+Create Your Own Smoothed-Particle-Hydrodynamics Simulation (With Python)
+Philip Mocz (2020) Princeton Univeristy, @PMocz
+
+Simulate the structure of a star with SPH
+
+This code is an optimized version of the original code.
+"""
 
 def W(x, y, z, h):
     """

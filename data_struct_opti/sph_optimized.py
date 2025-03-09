@@ -5,10 +5,13 @@ from scipy.spatial import cKDTree
 import numexpr as ne
 
 """
+Original Code: 
 Create Your Own Smoothed-Particle-Hydrodynamics Simulation (With Python)
 Philip Mocz (2020) Princeton Univeristy, @PMocz
 
 Simulate the structure of a star with SPH
+
+This code is an optimized version of the original code.
 """
 plt.ioff() 
 def W( x, y, z, h ):
