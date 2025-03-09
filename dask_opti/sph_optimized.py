@@ -111,9 +111,7 @@ def getPairwiseSeparations_inplace(ri, rj):
     dx = np.empty((M, N), dtype=np.float32)
     dy = np.empty((M, N), dtype=np.float32)
     dz = np.empty((M, N), dtype=np.float32)
-    #ri = ri.astype(np.float32)
     ri = np.asarray(ri).astype(np.float32) 
-    #rj = rj.astype(np.float32)
     rj = np.asarray(rj).astype(np.float32) 
     np.subtract(ri[:, 0][:, None], rj[:, 0][None, :], out=dx)
     np.subtract(ri[:, 1][:, None], rj[:, 1][None, :], out=dy)
@@ -188,21 +186,14 @@ def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	ay = - ne.evaluate("sum( scale * dWy, 1)").reshape((N,1))
 	az = - ne.evaluate("sum( scale * dWz, 1)").reshape((N,1))
  
-	#ax = - np.sum( m * ( P/rho**2 + P.T/rho.T**2) * dWx, 1).reshape((N,1))
-	#ay = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWy, 1).reshape((N,1))
-	#az = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWz, 1).reshape((N,1))
-	
 	# pack together the acceleration components
 	a = np.hstack((ax,ay,az))
 	
-	# Add external potential force
-	# do everything in place
+	# Add everything in place
 	a -= lmbda * pos - nu * vel
 	
-	# Add viscosity
-	#a -= nu * vel
-	
 	return a
+
 def print(ax1, ax2, rlin, rho_analytic, rr, pos, m, h): 
     plt.sca(ax1)
     plt.cla()
