@@ -1,8 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import gamma
-import cythonfn
-import cythonf
+cimport numpy as np
 
 """
 Create Your Own Smoothed-Particle-Hydrodynamics Simulation (With Python)
@@ -11,7 +10,7 @@ Philip Mocz (2020) Princeton Univeristy, @PMocz
 Simulate the structure of a star with SPH
 """
 
-def W( x, y, z, h ):
+def W(x,  y,  z, double h ):
 	"""
     Gausssian Smoothing kernel (3D)
 	x     is a vector/matrix of x positions
@@ -28,7 +27,7 @@ def W( x, y, z, h ):
 	return w
 	
 	
-def gradW( x, y, z, h ):
+def gradW(x, y, z, double h ):
 	"""
 	Gradient of the Gausssian Smoothing kernel (3D)
 	x     is a vector/matrix of x positions
@@ -44,11 +43,11 @@ def gradW( x, y, z, h ):
 	wx = n * x
 	wy = n * y
 	wz = n * z
-	
+			
 	return wx, wy, wz
 	
 	
-def getPairwiseSeparations( ri, rj ):
+def getPairwiseSeparations(ri, rj ):
 	"""
 	Get pairwise desprations between 2 sets of coordinates
 	ri    is an M x 3 matrix of positions
@@ -56,8 +55,8 @@ def getPairwiseSeparations( ri, rj ):
 	dx, dy, dz   are M x N matrices of separations
 	"""
 	
-	M = ri.shape[0]
-	N = rj.shape[0]
+	cdef int M = ri.shape[0]
+	cdef int N = rj.shape[0]
 	
 	# positions ri = (x,y,z)
 	rix = ri[:,0].reshape((M,1))
@@ -77,7 +76,7 @@ def getPairwiseSeparations( ri, rj ):
 	return dx, dy, dz
 	
 
-def getDensity( r, pos, m, h ):
+def getDensity(r, pos, double m, double h ):
 	"""
 	Get Density at sampling loctions from SPH particle distribution
 	r     is an M x 3 matrix of sampling locations
@@ -87,16 +86,15 @@ def getDensity( r, pos, m, h ):
 	rho   is M x 1 vector of densities
 	"""
 	
-	M = r.shape[0]
+	cdef int M = r.shape[0]
+	dx, dy, dz = getPairwiseSeparations( r, pos );
 	
-	dx, dy, dz = cythonfn.getPairwiseSeparations( r, pos );
-	
-	rho = np.sum( m * W(dx, dy, dz, h), 1 ).reshape((M,1))
+	rho = np.sum( m * (W(dx, dy, dz, h)), 1 ).reshape((M,1))
 	
 	return rho
 	
 	
-def getPressure(rho, k, n):
+def getPressure(double[:,:] rho, double k, int n):
 	"""
 	Equation of State
 	rho   vector of densities
@@ -105,12 +103,12 @@ def getPressure(rho, k, n):
 	P     pressure
 	"""
 	
-	P = k * rho**(1+1/n)
+	cdef double[:,:] P = k * np.array(rho)**(1+1/n)
 	
 	return P
 	
 
-def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
+def getAcc(pos,  vel, double m, double h, double k, int n, double lmbda, int nu ):
 	"""
 	Calculate the acceleration on each SPH particle
 	pos   is an N x 3 matrix of positions
@@ -124,22 +122,22 @@ def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	a     is N x 3 matrix of accelerations
 	"""
 	
-	N = pos.shape[0]
+	cdef int N = pos.shape[0]
 	
 	# Calculate densities at the position of the particles
-	rho = cythonfn.getDensity( pos, pos, m, h )
+	rho = getDensity( pos, pos, m, h )
 	
 	# Get the pressures
-	P = cythonfn.getPressure(rho, k, n)
+	cdef double[:,:] P = getPressure(rho, k, n)
 	
 	# Get pairwise distances and gradients
 	dx, dy, dz = getPairwiseSeparations( pos, pos )
 	dWx, dWy, dWz = gradW( dx, dy, dz, h )
 	
 	# Add Pressure contribution to accelerations
-	ax = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWx, 1).reshape((N,1))
-	ay = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWy, 1).reshape((N,1))
-	az = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWz, 1).reshape((N,1))
+	cdef double[:,:] ax = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWx, 1).reshape((N,1))
+	cdef double[:,:] ay = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWy, 1).reshape((N,1))
+	cdef double[:,:] az = - np.sum( m * ( P/rho**2 + P.T/rho.T**2  ) * dWz, 1).reshape((N,1))
 	
 	# pack together the acceleration components
 	a = np.hstack((ax,ay,az))
@@ -154,47 +152,38 @@ def getAcc( pos, vel, m, h, k, n, lmbda, nu ):
 	
 
 
-def main():
+def main(N):
 	""" SPH simulation """
-	return cythonfn.main()
-	'''
+	
 	# Simulation parameters
-	N         = 400    # Number of particles
-	t         = 0      # current time of the simulation
-	tEnd      = 12     # time at which simulation ends
-	dt        = 0.04   # timestep
-	M         = 2      # star mass
-	R         = 0.75   # star radius
-	h         = 0.1    # smoothing length
-	k         = 0.1    # equation of state constant
-	n         = 1      # polytropic index
-	nu        = 1      # damping
+	# N       = 10000   # Number of particles
+	cdef double t         = 0      # current time of the simulation
+	cdef int tEnd      = 12     # time at which simulation ends
+	cdef double dt        = 0.04   # timestep
+	cdef double M         = 2      # star mass
+	cdef double R         = 0.75   # star radius
+	cdef double h         = 0.1    # smoothing length
+	cdef double k         = 0.1    # equation of state constant
+	cdef double n         = 1      # polytropic index
+	cdef int nu        = 1      # damping
 	plotRealTime = False # switch on for plotting as the simulation goes along
 	
+	cdef double pi = np.pi
 	# Generate Initial Conditions
 	np.random.seed(42)            # set the random number generator seed
 	
-	lmbda = 2*k*(1+n)*np.pi**(-3/(2*n)) * (M*gamma(5/2+n)/R**3/gamma(1+n))**(1/n) / R**2  # ~ 2.01
-	m     = M/N                    # single particle mass
+	cdef double lmbda = 2*k*(1+n)*pi**(-3/(2*n)) * (M*gamma(5/2+n)/R**3/gamma(1+n))**(1/n) / R**2  # ~ 2.01
+	cdef double m     = M/N                    # single particle mass
 	pos   = np.random.randn(N,3)   # randomly selected positions and velocities
-	vel   = np.zeros(pos.shape)
+	vel   = np.zeros((N,3), dtype=np.double)
 	
 	# calculate initial gravitational accelerations
-	acc = cythonfn.getAcc( pos, vel, m, h, k, n, lmbda, nu )
+	acc = getAcc(pos, vel, m, h, k, n, lmbda, nu )
 	
 	# number of timesteps
-	Nt = int(np.ceil(tEnd/dt))
-	
-	# prep figure
-	fig = plt.figure(figsize=(4,5), dpi=80)
-	grid = plt.GridSpec(3, 1, wspace=0.0, hspace=0.3)
-	ax1 = plt.subplot(grid[0:2,0])
-	ax2 = plt.subplot(grid[2,0])
-	rr = np.zeros((100,3))
-	rlin = np.linspace(0,1,100)
-	rr[:,0] =rlin
-	rho_analytic = lmbda/(4*k) * (R**2 - rlin**2)
-	
+	cdef int Nt = int(np.ceil(tEnd/dt))
+
+	cdef int i
 	# Simulation Main Loop
 	for i in range(Nt):
 		# (1/2) kick
@@ -204,7 +193,7 @@ def main():
 		pos += vel * dt
 		
 		# update accelerations
-		acc = cythonfn.getAcc( pos, vel, m, h, k, n, lmbda, nu )
+		acc = getAcc(pos, vel, m, h, k, n, lmbda, nu )
 		
 		# (1/2) kick
 		vel += acc * dt/2
@@ -212,46 +201,4 @@ def main():
 		# update time
 		t += dt
 		
-		# get density for plotting
-		rho = cythonfn.getDensity( pos, pos, m, h )
-		
-		# plot in real time
-		if plotRealTime or (i == Nt-1):
-			plt.sca(ax1)
-			plt.cla()
-			cval = np.minimum((rho-3)/3,1).flatten()
-			plt.scatter(pos[:,0],pos[:,1], c=cval, cmap=plt.cm.autumn, s=10, alpha=0.5)
-			ax1.set(xlim=(-1.4, 1.4), ylim=(-1.2, 1.2))
-			ax1.set_aspect('equal', 'box')
-			ax1.set_xticks([-1,0,1])
-			ax1.set_yticks([-1,0,1])
-			ax1.set_facecolor('black')
-			ax1.set_facecolor((.1,.1,.1))
-			
-			plt.sca(ax2)
-			plt.cla()
-			ax2.set(xlim=(0, 1), ylim=(0, 3))
-			ax2.set_aspect(0.1)
-			plt.plot(rlin, rho_analytic, color='gray', linewidth=2)
-			rho_radial = getDensity( rr, pos, m, h )
-			plt.plot(rlin, rho_radial, color='blue')
-			plt.pause(0.001)
-	    
-	
-	
-	# add labels/legend
-	plt.sca(ax2)
-	plt.xlabel('radius')
-	plt.ylabel('density')
-	
-	# Save figure
-	# plt.savefig('sph.png',dpi=240)
-	# plt.show()
-	    
 	return 0
-	'''
-
-
-  
-if __name__== "__main__":
-  main()
